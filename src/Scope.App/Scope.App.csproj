@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net10.0-windows</TargetFramework>
+		<UseWindowsForms>true</UseWindowsForms>
+		<AssemblyName>SDS1102CML.Viewer</AssemblyName>
+		<ApplicationManifest>app.manifest</ApplicationManifest>
+		<Product>SDS1102CML+ Viewer</Product>
+		<Description>Podgląd przebiegów SIGLENT SDS1102CML+</Description>
+		<PackageLicenseExpression>PolyForm-Noncommercial-1.0.0</PackageLicenseExpression>
+	</PropertyGroup>
+	<ItemGroup><ProjectReference Include="../Scope.Core/Scope.Core.csproj" /></ItemGroup>
+</Project>
