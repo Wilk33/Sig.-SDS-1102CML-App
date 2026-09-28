@@ -12,7 +12,8 @@ Aplikacja nie wymaga uprawnień administratora.
 
 ## Zakres
 
-- Połączenie LAN VXI-11 albo USBTMC przez WinUSB.
+- Połączenie LAN przez VXI-11.
+- USB jest zablokowane w interfejsie i oznaczone jako nietestowane oraz niewdrożone.
 - Cykliczny podgląd przebiegów CH1 i CH2. Odznaczenie „Podgląd” zatrzymuje wyłącznie odświeżanie programu.
 - „Pobierz przebieg” zachowuje pełny odebrany blok próbek w pamięci aplikacji.
 - „Zapisz CSV” zapisuje ostatni ręcznie pobrany przebieg. Późniejsze odświeżenia podglądu go nie zastępują.
@@ -31,20 +32,12 @@ SDS1000CML+ nie obsługuje zwykłego SCPI socket na porcie 5025.
 Program nie skanuje sieci ani nie zmienia zapory.
 Adres IP jest zapisywany lokalnie w `%LOCALAPPDATA%/SDS1102CML.Viewer/settings.json`.
 
-## USB bez NI
+## USB
 
-1. Ustaw w oscyloskopie `Back USB = USBTMC`.
-2. Połącz tylny port USB Device z komputerem.
-3. Interfejs oscyloskopu musi mieć sterownik **WinUSB**.
-4. Wybierz USB, Odśwież USB, właściwe urządzenie SIGLENT i Połącz.
-
-Program używa systemowego WinUSB przez Windows API. Nie instaluje sterowników.
-Jeżeli Windows ma przypisany inny sterownik, WinUSB można przypisać narzędziem
-[Zadig](https://zadig.akeo.ie/), wybierając wyłącznie interfejs USBTMC oscyloskopu SIGLENT.
-Zmiana dotyczy tego urządzenia i może zmienić jego dostępność dla innych programów.
-Nie zmieniaj sterownika koncentratora, klawiatury ani innych urządzeń.
-W razie potrzeby pierwotny sterownik przywraca się w Menedżerze urządzeń.
-Obsługiwane wykrywanie USB: identyfikator producenta SIGLENT VID F4EC.
+Metoda USB jest w wersji 0.2.0 wyłączona i nie może zostać wybrana.
+Interfejs oznacza ją jako `USB - nietestowana, niewdrożona`.
+Kod prototypowy transportu USB nie jest udostępniony jako funkcja aplikacji.
+Aplikacja nie wymaga EasyScopeX, NI-VISA ani innych pakietów NI.
 
 ## Start / Stop / Auto
 
@@ -77,16 +70,19 @@ Wykres stosuje min/max przy ograniczaniu punktów do szerokości ekranu.
 CSV zawiera wszystkie odebrane próbki, bez tego ograniczenia.
 Niepełny lub nierozpoznany deskryptor jest odrzucany.
 
-## Stan wersji 0.1.0
+## Stan wersji 0.2.0
 
-Zaimplementowane oba transporty, dekoder, interfejs i eksport.
+Zaimplementowane połączenie LAN, dekoder, interfejs i eksport.
 Testy obejmują bloki binarne, podpisane próbki, skalowanie deskryptora, CSV,
-ramki USBTMC, odczyt bez zmiany ustawień oraz sesję VXI-11 przez lokalny TCP.
-Interfejs sprawdzany jest w dwóch rozmiarach okna.
+ramki prototypu USBTMC, odczyt bez zmiany ustawień oraz sesję VXI-11 przez lokalny TCP.
+Interfejs sprawdzany jest w dwóch rozmiarach okna. Test UI weryfikuje również
+ikonę aplikacji, zablokowanie USB, status Offline w przycisku połączenia oraz
+okna Autor i Licencja. Menu `O Aplikacji` pokazuje autora i pełny tekst
+PolyForm Noncommercial License 1.0.0.
 
 **Ta wersja nie została jeszcze sprawdzona z fizycznym SDS1102CML+.**
 Testy programowe nie potwierdzają zgodności konkretnego firmware,
-skalowania na rzeczywistych danych, działania sterownika USB ani szybkości podglądu.
+skalowania na rzeczywistych danych, działania LAN z urządzeniem ani szybkości podglądu.
 Nie ma ukrytego trybu demonstracyjnego w aplikacji.
 
 ## Budowanie

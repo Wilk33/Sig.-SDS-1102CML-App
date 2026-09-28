@@ -5,9 +5,15 @@
 		<UseWindowsForms>true</UseWindowsForms>
 		<AssemblyName>SDS1102CML.Viewer</AssemblyName>
 		<ApplicationManifest>app.manifest</ApplicationManifest>
+		<ApplicationIcon>..\..\siglent_sds1102cml+.ico</ApplicationIcon>
 		<Product>SDS1102CML+ Viewer</Product>
 		<Description>Podgląd przebiegów SIGLENT SDS1102CML+</Description>
 		<PackageLicenseExpression>PolyForm-Noncommercial-1.0.0</PackageLicenseExpression>
 	</PropertyGroup>
 	<ItemGroup><ProjectReference Include="../Scope.Core/Scope.Core.csproj" /></ItemGroup>
+	<ItemGroup>
+		<EmbeddedResource Include="..\..\siglent_sds1102cml+.ico" LogicalName="Scope.App.siglent_sds1102cml+.ico" />
+		<EmbeddedResource Include="..\..\siglent_sds1102cml+.png" LogicalName="Scope.App.siglent_sds1102cml+.png" />
+		<EmbeddedResource Include="..\..\LICENSE" LogicalName="Scope.App.LICENSE" />
+	</ItemGroup>
 </Project>

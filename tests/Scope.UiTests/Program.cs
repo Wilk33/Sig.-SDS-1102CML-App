@@ -1,6 +1,7 @@
 using Scope.App;
 using Scope.Core;
 using System.Drawing.Imaging;
+using System.Security.Cryptography;
 
 internal static class Program
 
@@ -19,6 +20,9 @@ internal static class Program
 		form.Show();
 		Application.DoEvents();
 		Control[] controls=Walk(form).ToArray();
+		AssertApplicationIdentity(form);
+		AssertConnectionControls(controls);
+		AssertAboutMenu(form);
 		if (controls.OfType<Button>().First(b => b.Text == "Zapisz CSV").Enabled)
 			throw new Exception("CSV enabled before capture");
 		if (controls.OfType<Button>().First(b => b.Text == "Start").Enabled)
@@ -56,9 +60,92 @@ internal static class Program
 
 		form.Close();
 		Application.DoEvents();
-		Console.WriteLine("PASS: offline controls, two window sizes, render with full sample buffers");
+		Console.WriteLine("PASS: application identity, offline controls, about windows, two window sizes, render with full sample buffers");
 		return 0;
 
+	}
+
+	private static void AssertApplicationIdentity(MainForm form)
+	{
+		using Icon expected=new("siglent_sds1102cml+.ico");
+		using Bitmap expectedBitmap=expected.ToBitmap();
+		using Bitmap actualBitmap=form.Icon!.ToBitmap();
+		if (!SHA256.HashData(BitmapBytes(expectedBitmap)).SequenceEqual(SHA256.HashData(BitmapBytes(actualBitmap))))
+			throw new Exception("Main window does not use the supplied ICO icon");
+	}
+
+	private static void AssertConnectionControls(Control[] controls)
+	{
+		Button connection=controls.OfType<Button>().SingleOrDefault(button => button.Text.Contains("Offline", StringComparison.Ordinal))
+			?? throw new Exception("The connection button does not show Offline");
+		if (!connection.Text.Contains("Połącz", StringComparison.Ordinal))
+			throw new Exception("The offline connection button does not show the Połącz action");
+		if (connection.Height < connection.Font.Height*2+4)
+			throw new Exception("The connection button is too short to display its Offline status");
+		if (controls.OfType<Label>().Any(label => label.Text == "Offline"))
+			throw new Exception("Offline is still displayed as a separate label");
+		if (controls.OfType<Label>().Any(label => label.Text == "Podgląd nie zmienia ustawień oscyloskopu"))
+			throw new Exception("The removed preview note is still visible");
+		ComboBox mode=controls.OfType<ComboBox>().Single(combo => combo.Items.Cast<object>().Any(item => item?.ToString() == "LAN"));
+		if (mode.Items.Count != 1 || mode.Items[0]?.ToString() != "LAN")
+			throw new Exception("USB can still be selected as a connection method");
+		Label usbNotice=controls.OfType<Label>().SingleOrDefault(label => label.Text.Contains("USB", StringComparison.Ordinal))
+			?? throw new Exception("Missing USB implementation status");
+		if (usbNotice.Enabled || !usbNotice.Text.Contains("nietestowana", StringComparison.OrdinalIgnoreCase) || !usbNotice.Text.Contains("niewdrożona", StringComparison.OrdinalIgnoreCase))
+			throw new Exception("USB status is not disabled or does not state that it is untested and unimplemented");
+	}
+
+	private static void AssertAboutMenu(MainForm form)
+	{
+		MenuStrip menu=form.MainMenuStrip ?? throw new Exception("Missing application toolbar");
+		ToolStripMenuItem about=menu.Items.OfType<ToolStripMenuItem>().SingleOrDefault(item => item.Text == "O Aplikacji")
+			?? throw new Exception("Missing O Aplikacji menu");
+		ToolStripMenuItem author=about.DropDownItems.OfType<ToolStripMenuItem>().SingleOrDefault(item => item.Text == "Autor")
+			?? throw new Exception("Missing Autor menu item");
+		ToolStripMenuItem license=about.DropDownItems.OfType<ToolStripMenuItem>().SingleOrDefault(item => item.Text == "Licencja")
+			?? throw new Exception("Missing Licencja menu item");
+
+		author.PerformClick();
+		Application.DoEvents();
+		Form authorWindow=Application.OpenForms.Cast<Form>().Single(window => window.Text == "Autor");
+		AssertInformationWindow(authorWindow, form, "Mateusz Skipor", "Inżynier Technik Elektroniki", "mskiporsklep@op.pl");
+		CaptureWindow(authorWindow, "artifacts/qa/author.png");
+		authorWindow.Close();
+
+		license.PerformClick();
+		Application.DoEvents();
+		Form licenseWindow=Application.OpenForms.Cast<Form>().Single(window => window.Text == "Licencja");
+		AssertInformationWindow(licenseWindow, form, "PolyForm Noncommercial License 1.0.0");
+		CaptureWindow(licenseWindow, "artifacts/qa/license.png");
+		licenseWindow.Close();
+	}
+
+	private static void AssertInformationWindow(Form window, MainForm main, params string[] expectedText)
+	{
+		Control[] controls=Walk(window).ToArray();
+		string text=string.Join("\n", controls.Select(control => control.Text));
+		if (window.BackColor != main.BackColor || window.Font.Name != "Consolas")
+			throw new Exception(window.Text+" window does not match the application style");
+		if (window.Icon == null || !controls.OfType<PictureBox>().Any(picture => picture.Image?.Width == 500 && picture.Image.Height == 500))
+			throw new Exception(window.Text+" window does not use the supplied application artwork");
+		foreach (string expected in expectedText)
+			if (!text.Contains(expected, StringComparison.Ordinal))
+				throw new Exception(window.Text+" window is missing: "+expected);
+	}
+
+	private static void CaptureWindow(Form window, string path)
+	{
+		Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+		using Bitmap bitmap=new(window.Width, window.Height);
+		window.DrawToBitmap(bitmap, new(0, 0, window.Width, window.Height));
+		bitmap.Save(path, ImageFormat.Png);
+	}
+
+	private static byte[] BitmapBytes(Bitmap bitmap)
+	{
+		using MemoryStream stream=new();
+		bitmap.Save(stream, ImageFormat.Png);
+		return stream.ToArray();
 	}
 
 	private static IEnumerable<Control> Walk(Control root)

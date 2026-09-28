@@ -18,21 +18,14 @@ public sealed class MainForm : Form
 		Width=175,
 		PlaceholderText="Adres IP oscyloskopu"
 	};
-	private readonly ComboBox usb=new()
+	private readonly Label usbNotice=new()
 	{
-		DropDownStyle=ComboBoxStyle.DropDownList,
-		Width=235,
-		Visible=false
-	};
-	private readonly Button refresh=Button("Odśwież USB", 130);
-	private readonly Button connect=Button("Połącz", 110);
-	private readonly Label connection=new()
-	{
-		Text="Offline",
+		Text="USB - nietestowana, niewdrożona",
 		AutoSize=true,
-		Padding=new(8, 7, 8, 0),
-		ForeColor=Color.FromArgb(255, 210, 130)
+		Enabled=false,
+		Padding=new(8, 8, 0, 0)
 	};
+	private readonly Button connect=Button("Połącz\r\nOffline", 124);
 	private readonly CheckBox ch1=new()
 	{
 		Text="CH1",
@@ -93,7 +86,7 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 
 	{
 
-		Text="SIGLENT SDS1102CML+ - Viewer 0.1.0";
+		Text="SIGLENT SDS1102CML+ - Viewer 0.2.0";
 		Font=new("Consolas", 10);
 		BackColor=Color.FromArgb(97, 97, 97);
 		ForeColor=Color.WhiteSmoke;
@@ -101,9 +94,11 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 		MinimumSize=new(870, 540);
 		StartPosition=FormStartPosition.CenterScreen;
 		AutoScaleMode=AutoScaleMode.Dpi;
-		mode.Items.AddRange(["LAN", "USB"]);
+		Icon=AppAssets.CreateIcon();
+		mode.Items.Add("LAN");
 		mode.SelectedIndex=0;
-		refresh.Visible=false;
+		connect.Height=44;
+		MenuStrip menu=CreateMenu();
 		TableLayoutPanel layout=new()
 
 		{
@@ -114,7 +109,7 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 			BackColor=BackColor
 
 		};
-		layout.RowStyles.Add(new(SizeType.Absolute, 50));
+		layout.RowStyles.Add(new(SizeType.Absolute, 60));
 		layout.RowStyles.Add(new(SizeType.Absolute, 36));
 		layout.RowStyles.Add(new(SizeType.Percent, 100));
 		layout.RowStyles.Add(new(SizeType.Absolute, 49));
@@ -125,11 +120,11 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 		{
 
 			Dock=DockStyle.Fill,
-			Padding=new(10, 8, 8, 4),
+			Padding=new(10, 4, 8, 4),
 			WrapContents=false
 
 		};
-		top.Controls.AddRange([mode, address, usb, refresh, connect, connection]);
+		top.Controls.AddRange([mode, address, connect, usbNotice]);
 		FlowLayoutPanel selection=new()
 
 		{
@@ -140,17 +135,6 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 
 		};
 		selection.Controls.AddRange([ch1, ch2, live]);
-		Label info=new()
-
-		{
-
-			Text="Podgląd nie zmienia ustawień oscyloskopu",
-			AutoSize=true,
-			Padding=new(20, 7, 0, 0),
-			ForeColor=Color.Silver
-
-		};
-		selection.Controls.Add(info);
 		FlowLayoutPanel actions=new()
 
 		{
@@ -168,9 +152,11 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 		layout.Controls.Add(detail, 0, 4);
 		layout.Controls.Add(status, 0, 5);
 		Controls.Add(layout);
+		Controls.Add(menu);
+		MainMenuStrip=menu;
 		foreach (Control c in new Control[]
 {
-mode, address, usb
+mode, address
 })
 
 		{
@@ -188,17 +174,6 @@ mode, address, usb
 		tips.SetToolTip(capture, "Pobiera pełny dostępny blok próbek. Dla wspólnej akwizycji CH1/CH2 najpierw wybierz Stop.");
 		tips.SetToolTip(save, "Zapisuje ostatni ręcznie pobrany przebieg, niezależnie od kolejnych odświeżeń podglądu.");
 		connect.Click+=async (_, _) => await ConnectOrDisconnect();
-		refresh.Click+=async (_, _) => await RefreshUsb();
-		mode.SelectedIndexChanged+=async (_, _) =>
-
-{
-
-	address.Visible=mode.SelectedIndex == 0;
-	usb.Visible=refresh.Visible=mode.SelectedIndex == 1;
-	if (mode.SelectedIndex == 1)
-		await RefreshUsb();
-
-};
 		start.Click+=async (_, _) => await Command(s => s.Start(), "Start wysłany.");
 		stop.Click+=async (_, _) => await Command(s => s.Stop(), "Stop wysłany.");
 		auto.Click+=async (_, _) => await Command(s => s.Auto(), "Auto Setup wysłane.");
@@ -239,45 +214,51 @@ mode, address, usb
 
 		bool connected=scope != null;
 		connect.Enabled=!busy && !closing;
-		connect.Text=connected ? "Rozłącz" : "Połącz";
-		mode.Enabled=address.Enabled=usb.Enabled=refresh.Enabled=!busy && !connected;
+		connect.Text=connected ? "Rozłącz\r\nOnline" : "Połącz\r\nOffline";
+		mode.Enabled=address.Enabled=!busy && !connected;
 		start.Enabled=stop.Enabled=auto.Enabled=connected && !busy;
 		capture.Enabled=connected && !busy && Channels.Length > 0;
 		save.Enabled=captured != null && !busy;
 
 	}
 
-	private async Task RefreshUsb()
+	private MenuStrip CreateMenu()
 
 	{
 
-		if (busy)
-			return;
-		busy=true;
-		UpdateEnabled();
-		try
+		MenuStrip menu=new()
 
 		{
 
-			List<UsbDevice> devices=await Task.Run(UsbTransport.Enumerate);
-			usb.Items.Clear();
-			usb.Items.AddRange(devices.Cast<object>().ToArray());
-			if (devices.Count > 0)
-				usb.SelectedIndex=0;
-			status.Text=devices.Count > 0 ? $"Urządzenia USB: {devices.Count}" : "Brak SIGLENT USB. Podłącz oscyloskop; wymagane USBTMC i WinUSB.";
+			Dock=DockStyle.Top,
+			BackColor=Color.FromArgb(82, 82, 82),
+			ForeColor=Color.WhiteSmoke,
+			Font=Font
 
-		}
+		};
+		ToolStripMenuItem about=new("O Aplikacji");
+		ToolStripMenuItem author=new("Autor");
+		ToolStripMenuItem license=new("Licencja");
+		foreach (ToolStripMenuItem item in new[]
 
-		catch (Exception ex)
 		{
-			ShowError(ex, false);
+
+			about, author, license
+
+		})
+		{
+
+			item.BackColor=Color.FromArgb(82, 82, 82);
+			item.ForeColor=Color.WhiteSmoke;
+			item.Font=Font;
+
 		}
 
-		finally
-		{
-			busy=false;
-			UpdateEnabled();
-		}
+		author.Click+=(_, _) => new InfoForm("Autor", "Mateusz Skipor\r\nInżynier Technik Elektroniki\r\nmskiporsklep@op.pl").Show(this);
+		license.Click+=(_, _) => new InfoForm("Licencja", AppAssets.LicenseText, true).Show(this);
+		about.DropDownItems.AddRange([author, license]);
+		menu.Items.Add(about);
+		return menu;
 
 
 	}
@@ -304,18 +285,14 @@ mode, address, usb
 			}
 
 			string host=address.Text.Trim();
-			UsbDevice? device=usb.SelectedItem as UsbDevice;
-			bool lan=mode.SelectedIndex == 0;
-			if (lan && host.Length == 0)
+			if (host.Length == 0)
 				throw new InvalidOperationException("Wpisz adres IP oscyloskopu.");
-			if (!lan && device == null)
-				throw new InvalidOperationException("Wybierz urządzenie USB.");
 			status.Text="Łączenie...";
 			scope=await Task.Run(() =>
 
 {
 
-	IInstrumentTransport transport=lan ? new Vxi11Transport(host) : new UsbTransport(device!.Path);
+	IInstrumentTransport transport=new Vxi11Transport(host);
 	ScopeClient client=new(transport);
 	try
 
@@ -334,8 +311,6 @@ mode, address, usb
 
 
 });
-			connection.Text="Online";
-			connection.ForeColor=Color.LightGreen;
 			status.Text=scope.Identity;
 			SaveSettings();
 
@@ -361,8 +336,6 @@ mode, address, usb
 
 		ScopeClient? old=scope;
 		scope=null;
-		connection.Text="Offline";
-		connection.ForeColor=Color.FromArgb(255, 210, 130);
 		plot.Stale=true;
 		plot.Invalidate();
 		if (old != null)
