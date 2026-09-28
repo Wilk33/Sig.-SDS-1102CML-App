@@ -34,7 +34,7 @@ Adres IP jest zapisywany lokalnie w `%LOCALAPPDATA%/SDS1102CML.Viewer/settings.j
 
 ## USB
 
-Metoda USB jest w wersji 0.2.1 wyłączona i nie może zostać wybrana.
+Metoda USB jest w wersji 0.3.0 wyłączona i nie może zostać wybrana.
 Informacja o USB nie jest pokazywana w głównym oknie.
 Kod prototypowy transportu USB nie jest udostępniony jako funkcja aplikacji.
 Aplikacja nie wymaga EasyScopeX, NI-VISA ani innych pakietów NI.
@@ -70,21 +70,25 @@ Wykres stosuje min/max przy ograniczaniu punktów do szerokości ekranu.
 CSV zawiera wszystkie odebrane próbki, bez tego ograniczenia.
 Niepełny lub nierozpoznany deskryptor jest odrzucany.
 
-## Stan wersji 0.2.1
+## Stan wersji 0.3.0
 
-Zaimplementowane połączenie LAN, dekoder, interfejs i eksport.
-Testy obejmują bloki binarne, podpisane próbki, skalowanie deskryptora, CSV,
-ramki prototypu USBTMC, odczyt bez zmiany ustawień oraz sesję VXI-11 przez lokalny TCP.
-Interfejs sprawdzany jest w dwóch rozmiarach okna. Test UI weryfikuje również
-ikonę aplikacji, brak USB w głównym oknie, status Offline w przycisku oraz
-standardowy pasek menu Windows. Okna Autor i Licencja nie zawierają grafik
-ani dodatkowych przycisków. Menu O Aplikacji pokazuje autora i pełny tekst
-PolyForm Noncommercial License 1.0.0.
+Połączenie LAN zostało sprawdzone na fizycznym SIGLENT SDS1102CML+ z firmware
+6.01.01.25. Test objął identyfikację urządzenia, odczyt stanu `SAST?`, Start,
+Stop, pobranie po 20 480 punktów z CH1 i CH2 oraz utworzenie 40 961 wierszy CSV.
+Auto Setup nie był wykonywany w teście sprzętowym, ponieważ zmienia konfigurację
+pomiaru oscyloskopu.
 
-**Ta wersja nie została jeszcze sprawdzona z fizycznym SDS1102CML+.**
-Testy programowe nie potwierdzają zgodności konkretnego firmware,
-skalowania na rzeczywistych danych, działania LAN z urządzeniem ani szybkości podglądu.
-Nie ma ukrytego trybu demonstracyjnego w aplikacji.
+Podczas testu aktywnego podglądu pojedyncze polecenie Stop zostało zachowane
+w kolejce i wykonane po bieżącym transferze w 396 ms. Oczekujące polecenie
+zablokowało rozpoczęcie następnego odświeżenia. Po teście przywrócono początkowy
+stan Stop.
+
+Testy programowe obejmują bloki binarne, podpisane próbki, skalowanie deskryptora,
+CSV, ramki prototypu USBTMC, odczyt bez zmiany ustawień, odpowiedzi `SAST`,
+kolejność podgląd-polecenie oraz sesję VXI-11 przez lokalny TCP. Test UI weryfikuje
+ikonę, układ w dwóch rozmiarach okna, brak USB w głównym oknie, dolny stan
+akwizycji, systemowy tryb kolorów, ciemny pasek tytułu Windows 10 oraz menu i okna
+O Aplikacji.
 
 ## Budowanie
 

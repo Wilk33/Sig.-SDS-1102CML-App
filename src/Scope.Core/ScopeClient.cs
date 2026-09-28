@@ -12,6 +12,17 @@ public interface IInstrumentTransport : IDisposable
 }
 
 
+public enum AcquisitionState
+
+{
+
+	Unknown,
+	Start,
+	Stop
+
+}
+
+
 public sealed class ScopeClient(IInstrumentTransport transport) : IDisposable
 
 {
@@ -67,6 +78,19 @@ public sealed class ScopeClient(IInstrumentTransport transport) : IDisposable
 
 	}
 
+	public AcquisitionState AcquisitionStatus()
+
+	{
+
+		string[] parts=Text("SAST?").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+		if (parts.Length < 2 || !parts[0].Equals("SAST", StringComparison.OrdinalIgnoreCase))
+			return AcquisitionState.Unknown;
+		string value=parts[^1].ToUpperInvariant();
+		if (value == "STOP")
+			return AcquisitionState.Stop;
+		return AcquisitionState.Start;
+
+	}
 	public void Stop()
 
 	{

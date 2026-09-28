@@ -215,6 +215,59 @@ Test("Stop and Start preserve NORM trigger mode", () =>
 		throw new Exception("Trigger mode not restored");
 
 });
+Test("Acquisition status maps physical SAST responses to Start and Stop", () =>
+
+{
+
+	using ScriptedTransport transport=new(Fixture())
+	{
+		SampleStatus="Stop"
+	};
+	using ScopeClient client=new(transport);
+	client.Initialize();
+	if (client.AcquisitionStatus() != AcquisitionState.Stop)
+		throw new Exception("SAST Stop not recognized");
+	transport.SampleStatus="Trig'd";
+	if (client.AcquisitionStatus() != AcquisitionState.Start)
+		throw new Exception("SAST Trig'd not recognized");
+
+});
+Test("Command waits for active preview and blocks the next preview", () =>
+
+{
+
+	using InstrumentOperationQueue queue=new();
+	using ManualResetEventSlim previewEntered=new(), releasePreview=new();
+	List<string> order=[];
+	Task first=queue.TryRunPreviewAsync(async () =>
+	{
+		lock (order)
+			order.Add("preview-1-start");
+		previewEntered.Set();
+		await Task.Run(releasePreview.Wait);
+		lock (order)
+			order.Add("preview-1-end");
+	});
+	if (!previewEntered.Wait(TimeSpan.FromSeconds(2)))
+		throw new Exception("Preview did not start");
+	Task command=queue.RunCommandAsync(() =>
+	{
+		lock (order)
+			order.Add("stop");
+		return Task.CompletedTask;
+	});
+	Task<bool> second=queue.TryRunPreviewAsync(() =>
+	{
+		lock (order)
+			order.Add("preview-2");
+		return Task.CompletedTask;
+	});
+	releasePreview.Set();
+	Task.WaitAll(first, command, second);
+	if (second.Result || !order.SequenceEqual(new[] { "preview-1-start", "preview-1-end", "stop" }))
+		throw new Exception(string.Join(",", order));
+
+});
 Test("Real VXI-11 TCP session handles RPC fragments and multi-part binary read", () =>
 
 {

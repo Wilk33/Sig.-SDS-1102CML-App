@@ -1,5 +1,14 @@
 # Zmiany
 
+## 0.3.0 - 2026-09-28
+
+- Dodano stale widoczny stan akwizycji `START`, `STOP`, `NIEZNANY` lub `OFFLINE`, odczytywany poleceniem `SAST?`.
+- Polecenia Start, Stop i Auto są kolejkowane za trwającym odczytem, dlatego pierwsze kliknięcie nie ginie podczas aktywnego podglądu.
+- Oczekujące polecenie blokuje rozpoczęcie kolejnego automatycznego odświeżenia.
+- Pasek tytułu, normalne menu i standardowe kontrolki dziedziczą motyw Windows. Dodano obsługę ciemnego paska DWM i menu na Windows 10.
+- Dodano test kolejności operacji, test odpowiedzi `SAST` i kontrolę ciemnego paska tytułu.
+- Połączenie LAN, odczyt CH1/CH2, CSV oraz Start/Stop zweryfikowano na fizycznym SDS1102CML+ z firmware 6.01.01.25.
+
 ## 0.2.1 - 2026-09-28
 
 - Przycisk połączenia pokazuje wyłącznie status Offline albo Online.

@@ -2,6 +2,8 @@ using Scope.App;
 using Scope.Core;
 using System.Drawing.Imaging;
 using System.Security.Cryptography;
+using System.Runtime.InteropServices;
+using Microsoft.Win32;
 
 internal static class Program
 
@@ -12,6 +14,7 @@ internal static class Program
 
 	{
 
+		Application.SetColorMode(SystemColorMode.System);
 		ApplicationConfiguration.Initialize();
 		Application.SetDefaultFont(new Font("Consolas", 10));
 		using MainForm form=new();
@@ -21,7 +24,10 @@ internal static class Program
 		Application.DoEvents();
 		Control[] controls=Walk(form).ToArray();
 		AssertApplicationIdentity(form);
+		AssertDarkTitleBar(form);
 		AssertConnectionControls(controls);
+		if (Application.ColorMode != SystemColorMode.System)
+			throw new Exception("Application does not inherit the Windows color mode");
 		AssertAboutMenu(form);
 		if (controls.OfType<Button>().First(b => b.Text == "Zapisz CSV").Enabled)
 			throw new Exception("CSV enabled before capture");
@@ -74,6 +80,26 @@ internal static class Program
 			throw new Exception("Main window does not use the supplied ICO icon");
 	}
 
+	private static void AssertDarkTitleBar(Form form)
+
+	{
+
+		if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763) || OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
+			return;
+		using RegistryKey? key=Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+		if (key?.GetValue("AppsUseLightTheme") is not int light || light != 0)
+			return;
+		int dark=0;
+		int result=DwmGetWindowAttribute(form.Handle, 20, out dark, sizeof(int));
+		if (result != 0)
+			result=DwmGetWindowAttribute(form.Handle, 19, out dark, sizeof(int));
+		if (result != 0 || dark != 1)
+			throw new Exception($"The Windows 10 title bar did not receive dark mode: result={result}, value={dark}");
+
+	}
+
+	[DllImport("dwmapi.dll")]
+	private static extern int DwmGetWindowAttribute(IntPtr window, int attribute, out int value, int size);
 	private static void AssertConnectionControls(Control[] controls)
 	{
 		Button connection=controls.OfType<Button>().SingleOrDefault(button => button.Text == "Offline")
@@ -82,6 +108,8 @@ internal static class Program
 			throw new Exception("Offline is still displayed as a separate label");
 		if (controls.OfType<Label>().Any(label => label.Text == "Podgląd nie zmienia ustawień oscyloskopu"))
 			throw new Exception("The removed preview note is still visible");
+		if (!controls.OfType<Label>().Any(label => label.Text == "Stan oscyloskopu: OFFLINE"))
+			throw new Exception("Missing acquisition status at the bottom of the main window");
 		if (controls.OfType<Label>().Any(label => label.Text.Contains("USB", StringComparison.OrdinalIgnoreCase)))
 			throw new Exception("USB implementation status is still visible in the main window");
 		ComboBox mode=controls.OfType<ComboBox>().Single(combo => combo.Items.Cast<object>().Any(item => item?.ToString() == "LAN"));
@@ -92,8 +120,8 @@ internal static class Program
 	private static void AssertAboutMenu(MainForm form)
 	{
 		MenuStrip menu=form.MainMenuStrip ?? throw new Exception("Missing application toolbar");
-		if (menu.RenderMode != ToolStripRenderMode.System)
-			throw new Exception("The application toolbar does not use the standard Windows renderer");
+		if (menu.RenderMode != ToolStripRenderMode.System && menu.Renderer.GetType().Name != "DarkMenuRenderer")
+			throw new Exception("The application toolbar does not use the Windows renderer or its Windows 10 dark fallback");
 		ToolStripMenuItem about=menu.Items.OfType<ToolStripMenuItem>().SingleOrDefault(item => item.Text == "O Aplikacji")
 			?? throw new Exception("Missing O Aplikacji menu");
 		ToolStripMenuItem author=about.DropDownItems.OfType<ToolStripMenuItem>().SingleOrDefault(item => item.Text == "Autor")

@@ -44,5 +44,22 @@ internal sealed class InfoForm : Form
 
 	}
 
+	protected override void OnShown(EventArgs e)
+
+	{
+
+		base.OnShown(e);
+		SystemTheme.ApplyTitleBar(this);
+
+	}
+
+	protected override void OnHandleCreated(EventArgs e)
+
+	{
+
+		base.OnHandleCreated(e);
+		SystemTheme.ApplyTitleBar(this);
+
+	}
 
 }

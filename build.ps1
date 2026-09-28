@@ -8,6 +8,8 @@ try
 	$releaseName="SDS1102CML-Viewer-$version-win-x64"
 	dotnet run --project tests/Scope.Tests -c Release
 	if ($LASTEXITCODE -ne 0) { throw 'Testy nie powiodły się.' }
+	dotnet run --project tests/Scope.UiTests -c Release
+	if ($LASTEXITCODE -ne 0) { throw 'Testy interfejsu nie powiodły się.' }
 	dotnet build src/Scope.App -c Release
 	if ($LASTEXITCODE -ne 0) { throw 'Kompilacja nie powiodła się.' }
 	if ($Publish)

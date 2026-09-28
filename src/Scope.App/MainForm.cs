@@ -44,6 +44,15 @@ public sealed class MainForm : Form
 		Padding=new(8, 6, 0, 0)
 	};
 	private readonly Button start=Button("Start", 90), stop=Button("Stop", 90), auto=Button("Auto", 90), capture=Button("Pobierz przebieg", 190), save=Button("Zapisz CSV", 150);
+	private readonly Label acquisition=new()
+	{
+		Text="Stan oscyloskopu: OFFLINE",
+		Dock=DockStyle.Fill,
+		AutoEllipsis=true,
+		Font=new Font("Consolas", 11, FontStyle.Bold),
+		ForeColor=Color.Silver,
+		Padding=new(10, 5, 10, 0)
+	};
 	private readonly Label status=new()
 	{
 		Text="Gotowy. Wybierz połączenie.",
@@ -67,9 +76,10 @@ public sealed class MainForm : Form
 	{
 		Interval=750
 	};
+	private readonly InstrumentOperationQueue operations=new();
 	private ScopeClient? scope;
 	private Waveform[]? captured;
-	private bool busy, closing, allowClose;
+	private bool busy, commandPending, closing, allowClose;
 	private int[] Channels => new[]
 {
 ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
@@ -80,7 +90,7 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 
 	{
 
-		Text="SIGLENT SDS1102CML+ - Viewer 0.2.1";
+		Text="SIGLENT SDS1102CML+ - Viewer 0.3.0";
 		Font=new("Consolas", 10);
 		BackColor=Color.FromArgb(97, 97, 97);
 		ForeColor=Color.WhiteSmoke;
@@ -98,7 +108,7 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 
 			Dock=DockStyle.Fill,
 			ColumnCount=1,
-			RowCount=6,
+			RowCount=7,
 			BackColor=BackColor
 
 		};
@@ -107,6 +117,7 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 		layout.RowStyles.Add(new(SizeType.Percent, 100));
 		layout.RowStyles.Add(new(SizeType.Absolute, 49));
 		layout.RowStyles.Add(new(SizeType.Absolute, 32));
+		layout.RowStyles.Add(new(SizeType.Absolute, 30));
 		layout.RowStyles.Add(new(SizeType.Absolute, 32));
 		FlowLayoutPanel top=new()
 
@@ -143,7 +154,8 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 		layout.Controls.Add(plot, 0, 2);
 		layout.Controls.Add(actions, 0, 3);
 		layout.Controls.Add(detail, 0, 4);
-		layout.Controls.Add(status, 0, 5);
+		layout.Controls.Add(acquisition, 0, 5);
+		layout.Controls.Add(status, 0, 6);
 		Controls.Add(layout);
 		Controls.Add(menu);
 		MainMenuStrip=menu;
@@ -177,7 +189,7 @@ mode, address
 
 {
 
-	if (!busy && scope != null && live.Checked && Channels.Length > 0)
+	if (!busy && !commandPending && scope != null && live.Checked && Channels.Length > 0)
 		await CaptureWaveform(false);
 
 };
@@ -207,12 +219,12 @@ mode, address
 	{
 
 		bool connected=scope != null;
-		connect.Enabled=!busy && !closing;
+		connect.Enabled=!busy && !commandPending && !closing;
 		connect.Text=connected ? "Online" : "Offline";
 		mode.Enabled=address.Enabled=!busy && !connected;
-		start.Enabled=stop.Enabled=auto.Enabled=connected && !busy;
-		capture.Enabled=connected && !busy && Channels.Length > 0;
-		save.Enabled=captured != null && !busy;
+		start.Enabled=stop.Enabled=auto.Enabled=connected && !commandPending && !closing;
+		capture.Enabled=connected && !busy && !commandPending && Channels.Length > 0;
+		save.Enabled=captured != null && !busy && !commandPending;
 
 	}
 
@@ -228,6 +240,12 @@ mode, address
 			Font=SystemFonts.MenuFont
 
 		};
+		if (SystemTheme.IsDark && !OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
+		{
+			menu.BackColor=Color.FromArgb(35, 35, 35);
+			menu.ForeColor=Color.WhiteSmoke;
+			menu.Renderer=new DarkMenuRenderer();
+		}
 		ToolStripMenuItem about=new("O Aplikacji");
 		ToolStripMenuItem author=new("Autor");
 		ToolStripMenuItem license=new("Licencja");
@@ -241,6 +259,23 @@ mode, address
 
 	}
 
+	protected override void OnHandleCreated(EventArgs e)
+
+	{
+
+		base.OnHandleCreated(e);
+		SystemTheme.ApplyTitleBar(this);
+
+	}
+
+	protected override void OnShown(EventArgs e)
+
+	{
+
+		base.OnShown(e);
+		SystemTheme.ApplyTitleBar(this);
+
+	}
 	private async Task ConnectOrDisconnect()
 
 	{
@@ -289,6 +324,8 @@ mode, address
 
 
 });
+			AcquisitionState state=await Task.Run(scope.AcquisitionStatus);
+			UpdateAcquisition(state);
 			status.Text=scope.Identity;
 			SaveSettings();
 
@@ -318,6 +355,7 @@ mode, address
 		plot.Invalidate();
 		if (old != null)
 			await Task.Run(old.Dispose);
+		UpdateAcquisition(AcquisitionState.Unknown);
 		status.Text="Rozłączono. Ostatnio pobrany przebieg można zapisać.";
 
 	}
@@ -326,74 +364,95 @@ mode, address
 
 	{
 
-		if (busy || scope == null)
+		if (commandPending || scope == null)
 			return;
-		busy=true;
+		commandPending=true;
 		UpdateEnabled();
+		ScopeClient client=scope;
 		try
 
 		{
 
-			ScopeClient client=scope;
-			await Task.Run(() => action(client));
-			status.Text=message;
+			status.Text=busy ? "Polecenie oczekuje na zakończenie bieżącego odczytu..." : "Wysyłanie polecenia...";
+			AcquisitionState state=AcquisitionState.Unknown;
+			await operations.RunCommandAsync(async () =>
+			{
+				await Task.Run(() =>
+				{
+					action(client);
+					state=client.AcquisitionStatus();
+				});
+			});
+			if (ReferenceEquals(scope, client))
+			{
+				UpdateAcquisition(state);
+				status.Text=message;
+			}
 
 		}
-
 		catch (Exception ex)
 		{
-			await Disconnect();
+			if (ReferenceEquals(scope, client))
+				await Disconnect();
 			ShowError(ex, true);
 		}
-
 		finally
 		{
-			busy=false;
+			commandPending=false;
 			UpdateEnabled();
 		}
 
 
 	}
-
 	private async Task CaptureWaveform(bool manual)
 
 	{
 
-		if (busy || scope == null)
+		if (busy || commandPending || scope == null)
 			return;
 		int[] channels=Channels;
 		if (channels.Length == 0)
 			return;
 		busy=true;
 		UpdateEnabled();
+		ScopeClient client=scope;
 		try
 
 		{
 
 			if (manual)
 				status.Text="Pobieranie przebiegu...";
-			ScopeClient client=scope;
-			Waveform[] result=await Task.Run(() => client.Capture(channels));
+			Waveform[]? result=null;
+			AcquisitionState state=AcquisitionState.Unknown;
+			bool completed=await operations.TryRunPreviewAsync(async () =>
+			{
+				await Task.Run(() =>
+				{
+					result=client.Capture(channels);
+					state=client.AcquisitionStatus();
+				});
+			});
+			if (!completed || result == null || !ReferenceEquals(scope, client))
+				return;
 			plot.SetWaveforms(result);
+			UpdateAcquisition(state);
 			if (manual)
 				captured=result;
 			detail.Text=string.Join(" | ", result.Select(w => $"CH{w.Channel}: {w.Volts.Length:N0} pkt"))+" | "+DateTime.Now.ToString("HH:mm:ss");
 			status.Text=manual ? "Pobrano. Zapisz CSV zapisze ten przebieg. Odczyty CH1/CH2 są sekwencyjne." : "Podgląd aktywny. Pobierz przebieg, aby zachować dane do CSV.";
 
 		}
-
 		catch (InvalidOperationException ex)
 		{
 			live.Checked=false;
 			ShowError(ex, manual);
 		}
-
 		catch (Exception ex)
 		{
-			await Disconnect();
+			if (ReferenceEquals(scope, client))
+				await Disconnect();
 			ShowError(ex, manual);
 		}
-
 		finally
 		{
 			busy=false;
@@ -403,11 +462,29 @@ mode, address
 
 	}
 
+	private void UpdateAcquisition(AcquisitionState state)
+
+	{
+
+		acquisition.Text="Stan oscyloskopu: "+state switch
+		{
+			AcquisitionState.Start => "START",
+			AcquisitionState.Stop => "STOP",
+			_ => scope == null ? "OFFLINE" : "NIEZNANY"
+		};
+		acquisition.ForeColor=state switch
+		{
+			AcquisitionState.Start => Color.LimeGreen,
+			AcquisitionState.Stop => Color.Gold,
+			_ => Color.Silver
+		};
+
+	}
 	private async Task SaveCsv()
 
 	{
 
-		if (busy || captured == null)
+		if (busy || commandPending || captured == null)
 			return;
 		using SaveFileDialog dialog=new()
 
@@ -547,7 +624,7 @@ mode, address
 			closing=true;
 			timer.Stop();
 			UpdateEnabled();
-			while (busy)
+			while (busy || commandPending)
 				await Task.Delay(100);
 			await Disconnect();
 			allowClose=true;
@@ -556,6 +633,7 @@ mode, address
 
 		}
 
+		operations.Dispose();
 		timer.Dispose();
 		base.OnFormClosing(e);
 

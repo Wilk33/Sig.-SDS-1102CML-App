@@ -9,6 +9,7 @@ internal sealed class ScriptedTransport(byte[] waveform) : IInstrumentTransport
 {
 
 	public string Mode="AUTO";
+	public string SampleStatus="Trig'd";
 	public List<string> Commands=[];
 	public void Write(string command) => Commands.Add(command);
 	public byte[] Query(string command)
@@ -22,6 +23,7 @@ internal sealed class ScriptedTransport(byte[] waveform) : IInstrumentTransport
 
 			"*IDN?" => "SIGLENT,SDS1102CML+,TEST,6.01",
 			"TRMD?" => "TRMD "+Mode,
+			"SAST?" => "SAST "+SampleStatus,
 			"C1:TRA?" => "C1:TRA ON",
 			"C2:TRA?" => "C2:TRA ON",
 			_ => ""
