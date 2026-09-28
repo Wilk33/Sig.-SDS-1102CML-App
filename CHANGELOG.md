@@ -1,5 +1,13 @@
 # Zmiany
 
+## 0.2.1 - 2026-09-28
+
+- Przycisk połączenia pokazuje wyłącznie status Offline albo Online.
+- Usunięto komunikat o USB z głównego okna.
+- Zastąpiono niestandardowy wygląd menu standardowym paskiem systemowym Windows.
+- Usunięto grafiki, ikony paska tytułu i przyciski Zamknij z okien Autor i Licencja.
+- Okna informacyjne zamyka się standardowym przyciskiem X na pasku tytułu.
+
 ## 0.2.0 - 2026-09-28
 
 - Dodano przekazane ikony PNG i ICO do aplikacji oraz okien informacyjnych.

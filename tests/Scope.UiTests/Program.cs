@@ -47,7 +47,7 @@ internal static class Program
 			{
 
 				if (button.Right > button.Parent!.ClientSize.Width || button.Bottom > button.Parent.ClientSize.Height)
-					throw new Exception("Clipped button: "+button.Text);
+					throw new Exception($"Clipped button: {button.Text}; bounds={button.Bounds}; parent={button.Parent!.ClientRectangle}");
 
 			}
 
@@ -76,28 +76,24 @@ internal static class Program
 
 	private static void AssertConnectionControls(Control[] controls)
 	{
-		Button connection=controls.OfType<Button>().SingleOrDefault(button => button.Text.Contains("Offline", StringComparison.Ordinal))
-			?? throw new Exception("The connection button does not show Offline");
-		if (!connection.Text.Contains("Połącz", StringComparison.Ordinal))
-			throw new Exception("The offline connection button does not show the Połącz action");
-		if (connection.Height < connection.Font.Height*2+4)
-			throw new Exception("The connection button is too short to display its Offline status");
+		Button connection=controls.OfType<Button>().SingleOrDefault(button => button.Text == "Offline")
+			?? throw new Exception("The connection button does not show only Offline");
 		if (controls.OfType<Label>().Any(label => label.Text == "Offline"))
 			throw new Exception("Offline is still displayed as a separate label");
 		if (controls.OfType<Label>().Any(label => label.Text == "Podgląd nie zmienia ustawień oscyloskopu"))
 			throw new Exception("The removed preview note is still visible");
+		if (controls.OfType<Label>().Any(label => label.Text.Contains("USB", StringComparison.OrdinalIgnoreCase)))
+			throw new Exception("USB implementation status is still visible in the main window");
 		ComboBox mode=controls.OfType<ComboBox>().Single(combo => combo.Items.Cast<object>().Any(item => item?.ToString() == "LAN"));
 		if (mode.Items.Count != 1 || mode.Items[0]?.ToString() != "LAN")
 			throw new Exception("USB can still be selected as a connection method");
-		Label usbNotice=controls.OfType<Label>().SingleOrDefault(label => label.Text.Contains("USB", StringComparison.Ordinal))
-			?? throw new Exception("Missing USB implementation status");
-		if (usbNotice.Enabled || !usbNotice.Text.Contains("nietestowana", StringComparison.OrdinalIgnoreCase) || !usbNotice.Text.Contains("niewdrożona", StringComparison.OrdinalIgnoreCase))
-			throw new Exception("USB status is not disabled or does not state that it is untested and unimplemented");
 	}
 
 	private static void AssertAboutMenu(MainForm form)
 	{
 		MenuStrip menu=form.MainMenuStrip ?? throw new Exception("Missing application toolbar");
+		if (menu.RenderMode != ToolStripRenderMode.System)
+			throw new Exception("The application toolbar does not use the standard Windows renderer");
 		ToolStripMenuItem about=menu.Items.OfType<ToolStripMenuItem>().SingleOrDefault(item => item.Text == "O Aplikacji")
 			?? throw new Exception("Missing O Aplikacji menu");
 		ToolStripMenuItem author=about.DropDownItems.OfType<ToolStripMenuItem>().SingleOrDefault(item => item.Text == "Autor")
@@ -126,8 +122,12 @@ internal static class Program
 		string text=string.Join("\n", controls.Select(control => control.Text));
 		if (window.BackColor != main.BackColor || window.Font.Name != "Consolas")
 			throw new Exception(window.Text+" window does not match the application style");
-		if (window.Icon == null || !controls.OfType<PictureBox>().Any(picture => picture.Image?.Width == 500 && picture.Image.Height == 500))
-			throw new Exception(window.Text+" window does not use the supplied application artwork");
+		if (window.ShowIcon)
+			throw new Exception(window.Text+" window still shows a title-bar graphic");
+		if (controls.OfType<PictureBox>().Any())
+			throw new Exception(window.Text+" window still contains artwork");
+		if (controls.OfType<Button>().Any())
+			throw new Exception(window.Text+" window still contains a close button");
 		foreach (string expected in expectedText)
 			if (!text.Contains(expected, StringComparison.Ordinal))
 				throw new Exception(window.Text+" window is missing: "+expected);

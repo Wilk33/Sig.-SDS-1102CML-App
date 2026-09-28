@@ -14,16 +14,6 @@ internal static class AppAssets
 
 	}
 
-	public static Image CreateLogo()
-
-	{
-
-		using Stream stream=Open("Scope.App.siglent_sds1102cml+.png");
-		using Image image=Image.FromStream(stream);
-		return new Bitmap(image);
-
-	}
-
 	public static string LicenseText
 
 	{

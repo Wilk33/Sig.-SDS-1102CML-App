@@ -34,8 +34,8 @@ Adres IP jest zapisywany lokalnie w `%LOCALAPPDATA%/SDS1102CML.Viewer/settings.j
 
 ## USB
 
-Metoda USB jest w wersji 0.2.0 wyłączona i nie może zostać wybrana.
-Interfejs oznacza ją jako `USB - nietestowana, niewdrożona`.
+Metoda USB jest w wersji 0.2.1 wyłączona i nie może zostać wybrana.
+Informacja o USB nie jest pokazywana w głównym oknie.
 Kod prototypowy transportu USB nie jest udostępniony jako funkcja aplikacji.
 Aplikacja nie wymaga EasyScopeX, NI-VISA ani innych pakietów NI.
 
@@ -70,14 +70,15 @@ Wykres stosuje min/max przy ograniczaniu punktów do szerokości ekranu.
 CSV zawiera wszystkie odebrane próbki, bez tego ograniczenia.
 Niepełny lub nierozpoznany deskryptor jest odrzucany.
 
-## Stan wersji 0.2.0
+## Stan wersji 0.2.1
 
 Zaimplementowane połączenie LAN, dekoder, interfejs i eksport.
 Testy obejmują bloki binarne, podpisane próbki, skalowanie deskryptora, CSV,
 ramki prototypu USBTMC, odczyt bez zmiany ustawień oraz sesję VXI-11 przez lokalny TCP.
 Interfejs sprawdzany jest w dwóch rozmiarach okna. Test UI weryfikuje również
-ikonę aplikacji, zablokowanie USB, status Offline w przycisku połączenia oraz
-okna Autor i Licencja. Menu `O Aplikacji` pokazuje autora i pełny tekst
+ikonę aplikacji, brak USB w głównym oknie, status Offline w przycisku oraz
+standardowy pasek menu Windows. Okna Autor i Licencja nie zawierają grafik
+ani dodatkowych przycisków. Menu O Aplikacji pokazuje autora i pełny tekst
 PolyForm Noncommercial License 1.0.0.
 
 **Ta wersja nie została jeszcze sprawdzona z fizycznym SDS1102CML+.**

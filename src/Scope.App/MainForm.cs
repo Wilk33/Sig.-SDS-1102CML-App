@@ -18,14 +18,8 @@ public sealed class MainForm : Form
 		Width=175,
 		PlaceholderText="Adres IP oscyloskopu"
 	};
-	private readonly Label usbNotice=new()
-	{
-		Text="USB - nietestowana, niewdrożona",
-		AutoSize=true,
-		Enabled=false,
-		Padding=new(8, 8, 0, 0)
-	};
-	private readonly Button connect=Button("Połącz\r\nOffline", 124);
+
+	private readonly Button connect=Button("Offline", 110);
 	private readonly CheckBox ch1=new()
 	{
 		Text="CH1",
@@ -86,7 +80,7 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 
 	{
 
-		Text="SIGLENT SDS1102CML+ - Viewer 0.2.0";
+		Text="SIGLENT SDS1102CML+ - Viewer 0.2.1";
 		Font=new("Consolas", 10);
 		BackColor=Color.FromArgb(97, 97, 97);
 		ForeColor=Color.WhiteSmoke;
@@ -97,7 +91,6 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 		Icon=AppAssets.CreateIcon();
 		mode.Items.Add("LAN");
 		mode.SelectedIndex=0;
-		connect.Height=44;
 		MenuStrip menu=CreateMenu();
 		TableLayoutPanel layout=new()
 
@@ -109,7 +102,7 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 			BackColor=BackColor
 
 		};
-		layout.RowStyles.Add(new(SizeType.Absolute, 60));
+		layout.RowStyles.Add(new(SizeType.Absolute, 50));
 		layout.RowStyles.Add(new(SizeType.Absolute, 36));
 		layout.RowStyles.Add(new(SizeType.Percent, 100));
 		layout.RowStyles.Add(new(SizeType.Absolute, 49));
@@ -120,11 +113,11 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 		{
 
 			Dock=DockStyle.Fill,
-			Padding=new(10, 4, 8, 4),
+			Padding=new(10, 8, 8, 4),
 			WrapContents=false
 
 		};
-		top.Controls.AddRange([mode, address, connect, usbNotice]);
+		top.Controls.AddRange([mode, address, connect]);
 		FlowLayoutPanel selection=new()
 
 		{
@@ -168,6 +161,7 @@ mode, address
 		}
 
 		ToolTip tips=new();
+		tips.SetToolTip(connect, "Kliknij, aby połączyć lub rozłączyć oscyloskop przez LAN.");
 		tips.SetToolTip(start, "Wznawia poprzedni tryb wyzwalania. Gdy nieznany, uruchamia TRMD AUTO.");
 		tips.SetToolTip(auto, "Auto Setup oscyloskopu. Zmienia ustawienia pomiaru.");
 		tips.SetToolTip(live, "Cykliczne odczyty. Odznaczenie zatrzymuje tylko odświeżanie aplikacji.");
@@ -214,7 +208,7 @@ mode, address
 
 		bool connected=scope != null;
 		connect.Enabled=!busy && !closing;
-		connect.Text=connected ? "Rozłącz\r\nOnline" : "Połącz\r\nOffline";
+		connect.Text=connected ? "Online" : "Offline";
 		mode.Enabled=address.Enabled=!busy && !connected;
 		start.Enabled=stop.Enabled=auto.Enabled=connected && !busy;
 		capture.Enabled=connected && !busy && Channels.Length > 0;
@@ -230,29 +224,13 @@ mode, address
 
 		{
 
-			Dock=DockStyle.Top,
-			BackColor=Color.FromArgb(82, 82, 82),
-			ForeColor=Color.WhiteSmoke,
-			Font=Font
+			RenderMode=ToolStripRenderMode.System,
+			Font=SystemFonts.MenuFont
 
 		};
 		ToolStripMenuItem about=new("O Aplikacji");
 		ToolStripMenuItem author=new("Autor");
 		ToolStripMenuItem license=new("Licencja");
-		foreach (ToolStripMenuItem item in new[]
-
-		{
-
-			about, author, license
-
-		})
-		{
-
-			item.BackColor=Color.FromArgb(82, 82, 82);
-			item.ForeColor=Color.WhiteSmoke;
-			item.Font=Font;
-
-		}
 
 		author.Click+=(_, _) => new InfoForm("Autor", "Mateusz Skipor\r\nInżynier Technik Elektroniki\r\nmskiporsklep@op.pl").Show(this);
 		license.Click+=(_, _) => new InfoForm("Licencja", AppAssets.LicenseText, true).Show(this);

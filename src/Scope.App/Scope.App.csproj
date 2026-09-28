@@ -13,7 +13,6 @@
 	<ItemGroup><ProjectReference Include="../Scope.Core/Scope.Core.csproj" /></ItemGroup>
 	<ItemGroup>
 		<EmbeddedResource Include="..\..\siglent_sds1102cml+.ico" LogicalName="Scope.App.siglent_sds1102cml+.ico" />
-		<EmbeddedResource Include="..\..\siglent_sds1102cml+.png" LogicalName="Scope.App.siglent_sds1102cml+.png" />
 		<EmbeddedResource Include="..\..\LICENSE" LogicalName="Scope.App.LICENSE" />
 	</ItemGroup>
 </Project>
