@@ -232,7 +232,33 @@ Test("Acquisition status maps physical SAST responses to Start and Stop", () =>
 		throw new Exception("SAST Trig'd not recognized");
 
 });
-Test("Command waits for active preview and blocks the next preview", () =>
+Test("PAVA measurements parse both channels with units and duty percent", () =>
+
+{
+
+	using ScriptedTransport transport=new(Fixture());
+	using ScopeClient client=new(transport);
+	client.Initialize();
+	ChannelMeasurements[] values=client.Measurements([1, 2]);
+	if (values.Length != 2)
+		throw new Exception("Missing channel measurements");
+	Eq(4.08,values[0].Vpp!.Value);
+	Eq(1.36,values[0].Vrms!.Value);
+	Eq(8000,values[0].Frequency!.Value);
+	Eq(-2.08,values[0].Minimum!.Value);
+	Eq(2.00,values[0].Maximum!.Value);
+	Eq(51.36,values[0].DutyPercent!.Value);
+	Eq(50.00,values[1].DutyPercent!.Value);
+
+});Test("Unavailable PAVA values remain visible as missing measurements", () =>
+
+{
+
+	ChannelMeasurements value=ChannelMeasurements.Parse(1,"C1:PAVA PKPK,****,RMS,1.00V,FREQ,****,MIN,-1.00V,MAX,1.00V,DUTY,****");
+	if(value.Vpp != null || value.Frequency != null || value.DutyPercent != null || value.Vrms != 1)
+		throw new Exception("Unavailable measurement was not preserved as missing");
+
+});Test("Command waits for active preview and blocks the next preview", () =>
 
 {
 

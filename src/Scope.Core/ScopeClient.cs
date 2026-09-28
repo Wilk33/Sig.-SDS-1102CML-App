@@ -78,6 +78,19 @@ public sealed class ScopeClient(IInstrumentTransport transport) : IDisposable
 
 	}
 
+	public ChannelMeasurements[] Measurements(int[] channels)
+
+	{
+
+		if(channels.Length == 0 || channels.Any(channel=>channel != 1 && channel != 2))
+			throw new ArgumentException("Wybierz CH1 lub CH2.");
+		return channels.Distinct()
+			.Select(channel=>ChannelMeasurements.Parse(
+				channel,
+				Text($"C{channel}:PAVA? PKPK,RMS,FREQ,MIN,MAX,DUTY")))
+			.ToArray();
+
+	}
 	public AcquisitionState AcquisitionStatus()
 
 	{

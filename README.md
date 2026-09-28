@@ -15,6 +15,9 @@ Aplikacja nie wymaga uprawnień administratora.
 - Połączenie LAN przez VXI-11.
 - USB jest zablokowane w interfejsie i oznaczone jako nietestowane oraz niewdrożone.
 - Cykliczny podgląd przebiegów CH1 i CH2. Odznaczenie „Podgląd” zatrzymuje wyłącznie odświeżanie programu.
+- Vpp, Vrms, częstotliwość, Vmin, Vmax i Duty są odczytywane dla wybranych i dostępnych kanałów.
+- Cztery lokalne kursory pokazują czas i napięcie obu kanałów oraz różnice dla kolejnych aktywnych par.
+- Rolka myszy nad wykresem zmienia wyłącznie lokalny zakres osi czasu.
 - „Pobierz przebieg” zachowuje pełny odebrany blok próbek w pamięci aplikacji.
 - „Zapisz CSV” zapisuje ostatni ręcznie pobrany przebieg. Późniejsze odświeżenia podglądu go nie zastępują.
 - Start, Stop i Auto Setup wysyłane tylko po kliknięciu.
@@ -34,7 +37,7 @@ Adres IP jest zapisywany lokalnie w `%LOCALAPPDATA%/SDS1102CML.Viewer/settings.j
 
 ## USB
 
-Metoda USB jest w wersji 0.3.0 wyłączona i nie może zostać wybrana.
+Metoda USB jest w wersji 0.4.0 wyłączona i nie może zostać wybrana.
 Informacja o USB nie jest pokazywana w głównym oknie.
 Kod prototypowy transportu USB nie jest udostępniony jako funkcja aplikacji.
 Aplikacja nie wymaga EasyScopeX, NI-VISA ani innych pakietów NI.
@@ -50,6 +53,16 @@ Aplikacja nie wymaga EasyScopeX, NI-VISA ani innych pakietów NI.
 Odczyty kanałów są sekwencyjne. Przy pracującym oscyloskopie CH1 i CH2 mogą
 pochodzić z różnych akwizycji. Aby porównać zatrzymane przebiegi, naciśnij Stop
 przed „Pobierz przebieg”. Program nie obiecuje ciągłego zapisu bez przerw.
+
+## Wykres i kursory
+
+- Rolka myszy nad wykresem przybliża lub oddala oś czasu względem położenia wskaźnika. Operacja jest lokalna i nie zmienia podstawy czasu oscyloskopu.
+- Kliknięcie przycisku Kursor 1, Kursor 2, Kursor 3 albo Kursor 4 włącza i wybiera kursor. Ponowne kliknięcie aktualnie wybranego kursora wyłącza go.
+- Prawy przycisk myszy nad wykresem odblokowuje wybrany kursor. Kursor podąża wtedy za wskaźnikiem.
+- Lewy przycisk myszy ustawia odblokowany kursor w wybranym miejscu.
+- Każdy aktywny kursor pokazuje czas oraz napięcie CH1 i CH2. Brak odczytanego kanału jest oznaczany jako `--`.
+- Aktywne kursory są parowane według numerów: 1-2, następnie 3-4. Jeżeli aktywne są tylko 2 i 3, tworzą parę 2-3. Kursor bez pary nie ma delty.
+- Dla pary pokazywane są delta czasu oraz delty napięcia CH1 i CH2.
 
 ## CSV i skalowanie
 
@@ -70,11 +83,13 @@ Wykres stosuje min/max przy ograniczaniu punktów do szerokości ekranu.
 CSV zawiera wszystkie odebrane próbki, bez tego ograniczenia.
 Niepełny lub nierozpoznany deskryptor jest odrzucany.
 
-## Stan wersji 0.3.0
+## Stan wersji 0.4.0
 
 Połączenie LAN zostało sprawdzone na fizycznym SIGLENT SDS1102CML+ z firmware
-6.01.01.25. Test objął identyfikację urządzenia, odczyt stanu `SAST?`, Start,
-Stop, pobranie po 20 480 punktów z CH1 i CH2 oraz utworzenie 40 961 wierszy CSV.
+6.01.01.25. W bieżącej wersji test odczytowy pobrał po 20 480 punktów z CH1 i CH2,
+stan `SAST?` oraz Vpp, Vrms, częstotliwość, Vmin, Vmax i Duty dla obu kanałów.
+Pełny cykl trwał 337 ms. Stan urządzenia przed testem i po nim wynosił START.
+Wcześniejszy test objął również Start, Stop oraz utworzenie 40 961 wierszy CSV.
 Auto Setup nie był wykonywany w teście sprzętowym, ponieważ zmienia konfigurację
 pomiaru oscyloskopu.
 
@@ -85,9 +100,9 @@ stan Stop.
 
 Testy programowe obejmują bloki binarne, podpisane próbki, skalowanie deskryptora,
 CSV, ramki prototypu USBTMC, odczyt bez zmiany ustawień, odpowiedzi `SAST`,
-kolejność podgląd-polecenie oraz sesję VXI-11 przez lokalny TCP. Test UI weryfikuje
+kolejność podgląd-polecenie, parser parametrów PAVA oraz sesję VXI-11 przez lokalny TCP. Test UI weryfikuje
 ikonę, układ w dwóch rozmiarach okna, brak USB w głównym oknie, dolny stan
-akwizycji, systemowy tryb kolorów, ciemny pasek tytułu Windows 10 oraz menu i okna
+akwizycji, lokalne powiększanie osi czasu, parowanie kursorów, systemowy tryb kolorów, ciemne paski tytułu Windows 10 oraz menu i okna
 O Aplikacji.
 
 ## Budowanie

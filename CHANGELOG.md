@@ -1,5 +1,16 @@
 # Zmiany
 
+## 0.4.0 - 2026-09-28
+
+- Dodano cztery kursory pomiarowe. Wybrany kursor odblokowuje się prawym przyciskiem myszy, podąża za wskaźnikiem i jest ustawiany lewym przyciskiem.
+- Każdy kursor pokazuje czas oraz napięcie CH1 i CH2. Aktywne kursory są łączone kolejno w pary, dla których obliczane są różnice czasu i napięcia obu kanałów.
+- Rolka myszy nad wykresem przybliża lub oddala wyłącznie lokalną oś czasu aplikacji i nie wysyła poleceń do oscyloskopu.
+- Dodano odczyt Vpp, Vrms, częstotliwości, Vmin, Vmax i współczynnika wypełnienia dla każdego pobranego kanału.
+- Ręczne pobranie przebiegu jest kolejkowane za trwającym podglądem, dzięki czemu pierwsze kliknięcie nie jest pomijane.
+- Usunięto dolny komunikat o aktywnym podglądzie.
+- Zastosowano obsługę ciemnego paska tytułu z projektu KA3005P App na etapie tworzenia uchwytu okna. Wymuszane jest także natychmiastowe przerysowanie ramki głównego okna oraz okien Autor i Licencja.
+- Odczyt przebiegów, parametrów i stanu zweryfikowano na fizycznym SDS1102CML+ z firmware 6.01.01.25. Cykl obejmujący oba kanały trwał 337 ms i nie zmienił stanu START urządzenia.
+
 ## 0.3.0 - 2026-09-28
 
 - Dodano stale widoczny stan akwizycji `START`, `STOP`, `NIEZNANY` lub `OFFLINE`, odczytywany poleceniem `SAST?`.

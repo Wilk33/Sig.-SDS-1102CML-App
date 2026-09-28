@@ -14,7 +14,10 @@ internal static class Program
 
 	{
 
-		Application.SetColorMode(SystemColorMode.System);
+		if(OperatingSystem.IsWindowsVersionAtLeast(10,0,22000))
+		{
+			Application.SetColorMode(SystemColorMode.System);
+		}
 		ApplicationConfiguration.Initialize();
 		Application.SetDefaultFont(new Font("Consolas", 10));
 		using MainForm form=new();
@@ -26,24 +29,30 @@ internal static class Program
 		AssertApplicationIdentity(form);
 		AssertDarkTitleBar(form);
 		AssertConnectionControls(controls);
-		if (Application.ColorMode != SystemColorMode.System)
+		if(OperatingSystem.IsWindowsVersionAtLeast(10,0,22000) && Application.ColorMode != SystemColorMode.System)
+		{
 			throw new Exception("Application does not inherit the Windows color mode");
+		}
 		AssertAboutMenu(form);
 		if (controls.OfType<Button>().First(b => b.Text == "Zapisz CSV").Enabled)
 			throw new Exception("CSV enabled before capture");
 		if (controls.OfType<Button>().First(b => b.Text == "Start").Enabled)
 			throw new Exception("Start enabled offline");
 		WavePlot plot=controls.OfType<WavePlot>().Single();
-		for (int j=0; j < 2; j++)
+		for(int j=0;j < 2;j++)
 
 		{
 
-			form.ClientSize=j == 0 ? new(1000, 660) : new(860, 510);
+			form.ClientSize=j == 0 ? new(1000,718) : new(870,606);
 			Application.DoEvents();
 			int n=20000;
 			double[] a=Enumerable.Range(0, n).Select(i => 2*Math.Sin(i*2*Math.PI/5000)).ToArray();
 			double[] b=Enumerable.Range(0, n).Select(i => Math.Sin(i*2*Math.PI/5000+0.6) > 0 ? 0.7 : -0.7).ToArray();
 			plot.SetWaveforms([new(1, a, 1e-6, -0.01, DateTimeOffset.UnixEpoch), new(2, b, 1e-6, -0.01, DateTimeOffset.UnixEpoch)]);
+			if(j == 0)
+			{
+				AssertPlotInteraction(plot);
+			}
 			foreach (Label label in controls.OfType<Label>())
 				if (label.Text.StartsWith("CH1 +"))
 					label.Text="PRZYKŁAD WYGLĄDU - dane syntetyczne, bez połączenia z oscyloskopem";
@@ -71,6 +80,33 @@ internal static class Program
 
 	}
 
+	private static void AssertPlotInteraction(WavePlot plot)
+
+	{
+
+		(double fullMin, double fullMax)=plot.VisibleTimeRange;
+		plot.ZoomAt(0.5, 120);
+		(double zoomMin, double zoomMax)=plot.VisibleTimeRange;
+		if (zoomMax-zoomMin >= fullMax-fullMin)
+			throw new Exception("Mouse-wheel zoom did not narrow the time axis");
+		plot.ClearCursors();
+		plot.ActivateOrSelectCursor(0);
+		plot.ActivateOrSelectCursor(1);
+		plot.ActivateOrSelectCursor(2);
+		if (!plot.ActiveCursorPairs().SequenceEqual(new[] { (1, 2) }))
+			throw new Exception("Cursors 1,2,3 were not paired as 1-2");
+		plot.ClearCursors();
+		plot.ActivateOrSelectCursor(1);
+		plot.ActivateOrSelectCursor(2);
+		if (!plot.ActiveCursorPairs().SequenceEqual(new[] { (2, 3) }))
+			throw new Exception("Cursors 2,3 were not paired as 2-3");
+		plot.UnlockSelectedCursor(0.25);
+		plot.MoveUnlockedCursor(0.75);
+		plot.PlaceUnlockedCursor(0.60);
+		if (plot.MovingCursor != -1 || plot.CursorTime(2) is not double time || time <= zoomMin || time >= zoomMax)
+			throw new Exception("Cursor unlock, follow and placement failed");
+
+	}
 	private static void AssertApplicationIdentity(MainForm form)
 	{
 		using Icon expected=new("siglent_sds1102cml+.ico");
@@ -110,6 +146,10 @@ internal static class Program
 			throw new Exception("The removed preview note is still visible");
 		if (!controls.OfType<Label>().Any(label => label.Text == "Stan oscyloskopu: OFFLINE"))
 			throw new Exception("Missing acquisition status at the bottom of the main window");
+		if (!controls.OfType<Label>().Any(label => label.Text.StartsWith("CH1: Vpp")) || !controls.OfType<Label>().Any(label => label.Text.StartsWith("CH2: Vpp")))
+			throw new Exception("Missing CH1/CH2 measurement rows");
+		if (controls.OfType<Button>().Count(button => button.Text.StartsWith("Kursor ")) != 4)
+			throw new Exception("Missing four cursor buttons");
 		if (controls.OfType<Label>().Any(label => label.Text.Contains("USB", StringComparison.OrdinalIgnoreCase)))
 			throw new Exception("USB implementation status is still visible in the main window");
 		ComboBox mode=controls.OfType<ComboBox>().Single(combo => combo.Items.Cast<object>().Any(item => item?.ToString() == "LAN"));
@@ -132,6 +172,7 @@ internal static class Program
 		author.PerformClick();
 		Application.DoEvents();
 		Form authorWindow=Application.OpenForms.Cast<Form>().Single(window => window.Text == "Autor");
+		AssertDarkTitleBar(authorWindow);
 		AssertInformationWindow(authorWindow, form, "Mateusz Skipor", "Inżynier Technik Elektroniki", "mskiporsklep@op.pl");
 		CaptureWindow(authorWindow, "artifacts/qa/author.png");
 		authorWindow.Close();
@@ -139,6 +180,7 @@ internal static class Program
 		license.PerformClick();
 		Application.DoEvents();
 		Form licenseWindow=Application.OpenForms.Cast<Form>().Single(window => window.Text == "Licencja");
+		AssertDarkTitleBar(licenseWindow);
 		AssertInformationWindow(licenseWindow, form, "PolyForm Noncommercial License 1.0.0");
 		CaptureWindow(licenseWindow, "artifacts/qa/license.png");
 		licenseWindow.Close();

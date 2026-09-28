@@ -43,7 +43,22 @@ public sealed class MainForm : Form
 		AutoSize=true,
 		Padding=new(8, 6, 0, 0)
 	};
-	private readonly Button start=Button("Start", 90), stop=Button("Stop", 90), auto=Button("Auto", 90), capture=Button("Pobierz przebieg", 190), save=Button("Zapisz CSV", 150);
+	private readonly Button start=Button("Start",90),stop=Button("Stop",90),auto=Button("Auto",90),capture=Button("Pobierz przebieg",190),save=Button("Zapisz CSV",150);
+	private readonly Button[] cursorButtons=
+	[
+		Button("Kursor 1",92),
+		Button("Kursor 2",92),
+		Button("Kursor 3",92),
+		Button("Kursor 4",92)
+	];
+	private readonly Label cursorHint=new()
+	{
+		Text="PPM odblokuj -> LPM ustaw",
+		AutoSize=true,
+		Padding=new(8,7,0,0)
+	};
+	private readonly Label channel1Measurements=MeasurementLabel("CH1");
+	private readonly Label channel2Measurements=MeasurementLabel("CH2");
 	private readonly Label acquisition=new()
 	{
 		Text="Stan oscyloskopu: OFFLINE",
@@ -79,6 +94,7 @@ public sealed class MainForm : Form
 	private readonly InstrumentOperationQueue operations=new();
 	private ScopeClient? scope;
 	private Waveform[]? captured;
+	private ChannelMeasurements[] lastMeasurements=[];
 	private bool busy, commandPending, closing, allowClose;
 	private int[] Channels => new[]
 {
@@ -90,12 +106,13 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 
 	{
 
-		Text="SIGLENT SDS1102CML+ - Viewer 0.3.0";
+		SystemTheme.ApplyTo(this);
+		Text="SIGLENT SDS1102CML+ - Viewer 0.4.0";
 		Font=new("Consolas", 10);
 		BackColor=Color.FromArgb(97, 97, 97);
 		ForeColor=Color.WhiteSmoke;
-		ClientSize=new(1000, 660);
-		MinimumSize=new(870, 540);
+		ClientSize=new(1000,718);
+		MinimumSize=new(870,606);
 		StartPosition=FormStartPosition.CenterScreen;
 		AutoScaleMode=AutoScaleMode.Dpi;
 		Icon=AppAssets.CreateIcon();
@@ -108,17 +125,18 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 
 			Dock=DockStyle.Fill,
 			ColumnCount=1,
-			RowCount=7,
+			RowCount=8,
 			BackColor=BackColor
 
 		};
-		layout.RowStyles.Add(new(SizeType.Absolute, 50));
-		layout.RowStyles.Add(new(SizeType.Absolute, 36));
-		layout.RowStyles.Add(new(SizeType.Percent, 100));
-		layout.RowStyles.Add(new(SizeType.Absolute, 49));
-		layout.RowStyles.Add(new(SizeType.Absolute, 32));
-		layout.RowStyles.Add(new(SizeType.Absolute, 30));
-		layout.RowStyles.Add(new(SizeType.Absolute, 32));
+		layout.RowStyles.Add(new(SizeType.Absolute,50));
+		layout.RowStyles.Add(new(SizeType.Absolute,42));
+		layout.RowStyles.Add(new(SizeType.Absolute,52));
+		layout.RowStyles.Add(new(SizeType.Percent,100));
+		layout.RowStyles.Add(new(SizeType.Absolute,49));
+		layout.RowStyles.Add(new(SizeType.Absolute,32));
+		layout.RowStyles.Add(new(SizeType.Absolute,30));
+		layout.RowStyles.Add(new(SizeType.Absolute,32));
 		FlowLayoutPanel top=new()
 
 		{
@@ -138,7 +156,19 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 			WrapContents=false
 
 		};
-		selection.Controls.AddRange([ch1, ch2, live]);
+		selection.Controls.AddRange([ch1,ch2,live,..cursorButtons,cursorHint]);
+		TableLayoutPanel readings=new()
+		{
+			Dock=DockStyle.Fill,
+			ColumnCount=1,
+			RowCount=2,
+			Padding=new(10,0,8,0),
+			BackColor=BackColor
+		};
+		readings.RowStyles.Add(new(SizeType.Percent,50));
+		readings.RowStyles.Add(new(SizeType.Percent,50));
+		readings.Controls.Add(channel1Measurements,0,0);
+		readings.Controls.Add(channel2Measurements,0,1);
 		FlowLayoutPanel actions=new()
 
 		{
@@ -149,13 +179,14 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 
 		};
 		actions.Controls.AddRange([start, stop, auto, capture, save]);
-		layout.Controls.Add(top, 0, 0);
-		layout.Controls.Add(selection, 0, 1);
-		layout.Controls.Add(plot, 0, 2);
-		layout.Controls.Add(actions, 0, 3);
-		layout.Controls.Add(detail, 0, 4);
-		layout.Controls.Add(acquisition, 0, 5);
-		layout.Controls.Add(status, 0, 6);
+		layout.Controls.Add(top,0,0);
+		layout.Controls.Add(selection,0,1);
+		layout.Controls.Add(readings,0,2);
+		layout.Controls.Add(plot,0,3);
+		layout.Controls.Add(actions,0,4);
+		layout.Controls.Add(detail,0,5);
+		layout.Controls.Add(acquisition,0,6);
+		layout.Controls.Add(status,0,7);
 		Controls.Add(layout);
 		Controls.Add(menu);
 		MainMenuStrip=menu;
@@ -172,6 +203,12 @@ mode, address
 
 		}
 
+		for(int index=0;index < cursorButtons.Length;index++)
+		{
+			int cursorIndex=index;
+			cursorButtons[index].Click+=(_,_)=>plot.ActivateOrSelectCursor(cursorIndex);
+		}
+		plot.CursorStateChanged+=(_,_)=>UpdateCursorButtons();
 		ToolTip tips=new();
 		tips.SetToolTip(connect, "Kliknij, aby połączyć lub rozłączyć oscyloskop przez LAN.");
 		tips.SetToolTip(start, "Wznawia poprzedni tryb wyzwalania. Gdy nieznany, uruchamia TRMD AUTO.");
@@ -179,6 +216,11 @@ mode, address
 		tips.SetToolTip(live, "Cykliczne odczyty. Odznaczenie zatrzymuje tylko odświeżanie aplikacji.");
 		tips.SetToolTip(capture, "Pobiera pełny dostępny blok próbek. Dla wspólnej akwizycji CH1/CH2 najpierw wybierz Stop.");
 		tips.SetToolTip(save, "Zapisuje ostatni ręcznie pobrany przebieg, niezależnie od kolejnych odświeżeń podglądu.");
+		for(int index=0;index < cursorButtons.Length;index++)
+		{
+			tips.SetToolTip(cursorButtons[index],$"Kursor {index+1}: kliknij, aby włączyć lub wybrać. Ponowne kliknięcie wybranego kursora wyłącza go.");
+		}
+		tips.SetToolTip(plot,"Rolka: przybliżenie osi czasu. PPM: odblokuj wybrany kursor. LPM: ustaw kursor.");
 		connect.Click+=async (_, _) => await ConnectOrDisconnect();
 		start.Click+=async (_, _) => await Command(s => s.Start(), "Start wysłany.");
 		stop.Click+=async (_, _) => await Command(s => s.Stop(), "Stop wysłany.");
@@ -201,6 +243,15 @@ mode, address
 
 	}
 
+	private static Label MeasurementLabel(string channel)=>new()
+	{
+		Text=channel+": Vpp -- | Vrms -- | Hz -- | Vmin -- | Vmax -- | Duty --",
+		Dock=DockStyle.Fill,
+		AutoEllipsis=true,
+		Padding=new(4,3,4,0),
+		Font=new Font("Consolas",10,FontStyle.Bold),
+		ForeColor=channel == "CH1" ? Color.FromArgb(255,220,50) : Color.FromArgb(80,225,230)
+	};
 	private static Button Button(string text, int width) => new()
 
 	{
@@ -223,8 +274,12 @@ mode, address
 		connect.Text=connected ? "Online" : "Offline";
 		mode.Enabled=address.Enabled=!busy && !connected;
 		start.Enabled=stop.Enabled=auto.Enabled=connected && !commandPending && !closing;
-		capture.Enabled=connected && !busy && !commandPending && Channels.Length > 0;
+		capture.Enabled=connected && !commandPending && Channels.Length > 0;
 		save.Enabled=captured != null && !busy && !commandPending;
+		foreach(Button cursorButton in cursorButtons)
+		{
+			cursorButton.Enabled=plot.HasWaveforms;
+		}
 
 	}
 
@@ -240,12 +295,8 @@ mode, address
 			Font=SystemFonts.MenuFont
 
 		};
-		if (SystemTheme.IsDark && !OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
-		{
-			menu.BackColor=Color.FromArgb(35, 35, 35);
-			menu.ForeColor=Color.WhiteSmoke;
-			menu.Renderer=new DarkMenuRenderer();
-		}
+		SystemTheme.ApplyTo(menu);
+
 		ToolStripMenuItem about=new("O Aplikacji");
 		ToolStripMenuItem author=new("Autor");
 		ToolStripMenuItem license=new("Licencja");
@@ -259,23 +310,6 @@ mode, address
 
 	}
 
-	protected override void OnHandleCreated(EventArgs e)
-
-	{
-
-		base.OnHandleCreated(e);
-		SystemTheme.ApplyTitleBar(this);
-
-	}
-
-	protected override void OnShown(EventArgs e)
-
-	{
-
-		base.OnShown(e);
-		SystemTheme.ApplyTitleBar(this);
-
-	}
 	private async Task ConnectOrDisconnect()
 
 	{
@@ -353,6 +387,7 @@ mode, address
 		scope=null;
 		plot.Stale=true;
 		plot.Invalidate();
+		UpdateMeasurementRows(lastMeasurements,true);
 		if (old != null)
 			await Task.Run(old.Dispose);
 		UpdateAcquisition(AcquisitionState.Unknown);
@@ -404,64 +439,195 @@ mode, address
 
 
 	}
+	private sealed record ScopeSnapshot(Waveform[] Waves,ChannelMeasurements[] Measurements,AcquisitionState State);
+
 	private async Task CaptureWaveform(bool manual)
-
 	{
+		if(manual)
+		{
+			await CaptureManualWaveform();
+		}
+		else
+		{
+			await CapturePreview();
+		}
+	}
 
-		if (busy || commandPending || scope == null)
+	private async Task CaptureManualWaveform()
+	{
+		if(commandPending || scope == null)
+		{
 			return;
+		}
 		int[] channels=Channels;
-		if (channels.Length == 0)
+		if(channels.Length == 0)
+		{
 			return;
+		}
+		commandPending=true;
+		UpdateEnabled();
+		ScopeClient client=scope;
+		try
+		{
+			status.Text=busy ? "Pobieranie przebiegu oczekuje na zakończenie podglądu..." : "Pobieranie przebiegu...";
+			ScopeSnapshot? snapshot=null;
+			await operations.RunCommandAsync(async()=>
+			{
+				snapshot=await Task.Run(()=>ReadSnapshot(client,channels));
+			});
+			if(snapshot != null && ReferenceEquals(scope,client))
+			{
+				ApplySnapshot(snapshot,true);
+			}
+		}
+		catch(InvalidOperationException ex)
+		{
+			ShowError(ex,true);
+		}
+		catch(Exception ex)
+		{
+			if(ReferenceEquals(scope,client))
+			{
+				await Disconnect();
+			}
+			ShowError(ex,true);
+		}
+		finally
+		{
+			commandPending=false;
+			UpdateEnabled();
+		}
+	}
+
+	private async Task CapturePreview()
+	{
+		if(busy || commandPending || scope == null)
+		{
+			return;
+		}
+		int[] channels=Channels;
+		if(channels.Length == 0)
+		{
+			return;
+		}
 		busy=true;
 		UpdateEnabled();
 		ScopeClient client=scope;
 		try
-
 		{
-
-			if (manual)
-				status.Text="Pobieranie przebiegu...";
-			Waveform[]? result=null;
-			AcquisitionState state=AcquisitionState.Unknown;
-			bool completed=await operations.TryRunPreviewAsync(async () =>
+			ScopeSnapshot? snapshot=null;
+			bool completed=await operations.TryRunPreviewAsync(async()=>
 			{
-				await Task.Run(() =>
-				{
-					result=client.Capture(channels);
-					state=client.AcquisitionStatus();
-				});
+				snapshot=await Task.Run(()=>ReadSnapshot(client,channels));
 			});
-			if (!completed || result == null || !ReferenceEquals(scope, client))
-				return;
-			plot.SetWaveforms(result);
-			UpdateAcquisition(state);
-			if (manual)
-				captured=result;
-			detail.Text=string.Join(" | ", result.Select(w => $"CH{w.Channel}: {w.Volts.Length:N0} pkt"))+" | "+DateTime.Now.ToString("HH:mm:ss");
-			status.Text=manual ? "Pobrano. Zapisz CSV zapisze ten przebieg. Odczyty CH1/CH2 są sekwencyjne." : "Podgląd aktywny. Pobierz przebieg, aby zachować dane do CSV.";
-
+			if(completed && snapshot != null && ReferenceEquals(scope,client))
+			{
+				ApplySnapshot(snapshot,false);
+			}
 		}
-		catch (InvalidOperationException ex)
+		catch(InvalidOperationException ex)
 		{
 			live.Checked=false;
-			ShowError(ex, manual);
+			ShowError(ex,false);
 		}
-		catch (Exception ex)
+		catch(Exception ex)
 		{
-			if (ReferenceEquals(scope, client))
+			if(ReferenceEquals(scope,client))
+			{
 				await Disconnect();
-			ShowError(ex, manual);
+			}
+			ShowError(ex,false);
 		}
 		finally
 		{
 			busy=false;
 			UpdateEnabled();
 		}
-
-
 	}
 
+	private static ScopeSnapshot ReadSnapshot(ScopeClient client,int[] channels)
+	{
+		Waveform[] waves=client.Capture(channels);
+		int[] capturedChannels=waves.Select(wave=>wave.Channel).ToArray();
+		ChannelMeasurements[] measurements=client.Measurements(capturedChannels);
+		AcquisitionState state=client.AcquisitionStatus();
+		return new(waves,measurements,state);
+	}
+
+	private void ApplySnapshot(ScopeSnapshot snapshot,bool manual)
+	{
+		plot.SetWaveforms(snapshot.Waves);
+		lastMeasurements=snapshot.Measurements;
+		UpdateMeasurementRows(lastMeasurements,false);
+		UpdateAcquisition(snapshot.State);
+		if(manual)
+		{
+			captured=snapshot.Waves;
+		}
+		detail.Text=string.Join(" | ",snapshot.Waves.Select(wave=>$"CH{wave.Channel}: {wave.Volts.Length:N0} pkt"))+" | "+DateTime.Now.ToString("HH:mm:ss");
+		status.Text=manual ? "Pobrano. Zapisz CSV zapisze ten przebieg. Odczyty CH1/CH2 są sekwencyjne." : "";
+		UpdateCursorButtons();
+	}
+
+	private void UpdateCursorButtons()
+	{
+		for(int index=0;index < cursorButtons.Length;index++)
+		{
+			Button button=cursorButtons[index];
+			bool active=plot.IsCursorActive(index);
+			bool selected=plot.SelectedCursor == index;
+			bool moving=plot.MovingCursor == index;
+			button.Text=$"Kursor {index+1}"+(moving ? " RUCH" : "");
+			button.FlatStyle=FlatStyle.Flat;
+			button.FlatAppearance.BorderSize=selected ? 3 : 1;
+			button.FlatAppearance.BorderColor=selected ? Color.White : Color.FromArgb(80,80,80);
+			button.BackColor=active ? WavePlot.CursorColor(index) : Color.FromArgb(192,192,192);
+			button.ForeColor=active ? Color.Black : Color.Black;
+		}
+	}
+
+	private void UpdateMeasurementRows(ChannelMeasurements[] measurements,bool stale)
+	{
+		channel1Measurements.Text=MeasurementText("CH1",measurements.SingleOrDefault(value=>value.Channel == 1),stale);
+		channel2Measurements.Text=MeasurementText("CH2",measurements.SingleOrDefault(value=>value.Channel == 2),stale);
+	}
+
+	private static string MeasurementText(string channel,ChannelMeasurements? value,bool stale)
+	{
+		string prefix=channel+(stale && value != null ? " [nieaktualne]" : "");
+		if(value == null)
+		{
+			return prefix+": Vpp -- | Vrms -- | Hz -- | Vmin -- | Vmax -- | Duty --";
+		}
+		return prefix+": Vpp "+FormatMeasurement(value.Vpp,"V")+
+			" | Vrms "+FormatMeasurement(value.Vrms,"V")+
+			" | Hz "+FormatMeasurement(value.Frequency,"Hz")+
+			" | Vmin "+FormatMeasurement(value.Minimum,"V")+
+			" | Vmax "+FormatMeasurement(value.Maximum,"V")+
+			" | Duty "+(value.DutyPercent.HasValue
+				? value.DutyPercent.Value.ToString("0.##",System.Globalization.CultureInfo.InvariantCulture)+" %"
+				: "--");
+	}
+
+	private static string FormatMeasurement(double? value,string unit)
+	{
+		return value.HasValue ? FormatEngineering(value.Value,unit) : "--";
+	}
+	private static string FormatEngineering(double value,string unit)
+	{
+		double absolute=Math.Abs(value);
+		(double factor,string prefix)=absolute switch
+		{
+			>=1e6=>(1e6,"M"),
+			>=1e3=>(1e3,"k"),
+			>=1=>(1,""),
+			>=1e-3=>(1e-3,"m"),
+			>=1e-6=>(1e-6,"µ"),
+			>0=>(1e-9,"n"),
+			_=>(1,"")
+		};
+		return (value/factor).ToString("0.###",System.Globalization.CultureInfo.InvariantCulture)+" "+prefix+unit;
+	}
 	private void UpdateAcquisition(AcquisitionState state)
 
 	{

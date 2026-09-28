@@ -8,6 +8,7 @@ internal sealed class InfoForm : Form
 
 	{
 
+		SystemTheme.ApplyTo(this);
 		Text=title;
 		Font=new("Consolas", 10);
 		BackColor=Color.FromArgb(97, 97, 97);
@@ -44,22 +45,6 @@ internal sealed class InfoForm : Form
 
 	}
 
-	protected override void OnShown(EventArgs e)
 
-	{
-
-		base.OnShown(e);
-		SystemTheme.ApplyTitleBar(this);
-
-	}
-
-	protected override void OnHandleCreated(EventArgs e)
-
-	{
-
-		base.OnHandleCreated(e);
-		SystemTheme.ApplyTitleBar(this);
-
-	}
 
 }

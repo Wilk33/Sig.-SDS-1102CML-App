@@ -9,7 +9,10 @@ internal static class Program
 
 	{
 
-		Application.SetColorMode(SystemColorMode.System);
+		if(OperatingSystem.IsWindowsVersionAtLeast(10,0,22000))
+		{
+			Application.SetColorMode(SystemColorMode.System);
+		}
 		ApplicationConfiguration.Initialize();
 		Application.SetDefaultFont(new Font("Consolas", 10));
 		Application.ThreadException+=(sender, e) => MessageBox.Show(e.Exception.Message, "Błąd aplikacji", MessageBoxButtons.OK, MessageBoxIcon.Error);

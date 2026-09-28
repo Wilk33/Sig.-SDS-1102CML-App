@@ -24,6 +24,8 @@ internal sealed class ScriptedTransport(byte[] waveform) : IInstrumentTransport
 			"*IDN?" => "SIGLENT,SDS1102CML+,TEST,6.01",
 			"TRMD?" => "TRMD "+Mode,
 			"SAST?" => "SAST "+SampleStatus,
+			"C1:PAVA? PKPK,RMS,FREQ,MIN,MAX,DUTY" => "C1:PAVA PKPK,4.08E+00V,RMS,1.36E+00V,FREQ,8.00E+03Hz,MIN,-2.08E+00V,MAX,2.00E+00V,DUTY,51.36%",
+			"C2:PAVA? PKPK,RMS,FREQ,MIN,MAX,DUTY" => "C2:PAVA PKPK,3.12E+00V,RMS,2.16E+00V,FREQ,1.00E+03Hz,MIN,0.00E+00V,MAX,3.12E+00V,DUTY,50.00%",
 			"C1:TRA?" => "C1:TRA ON",
 			"C2:TRA?" => "C2:TRA ON",
 			_ => ""
