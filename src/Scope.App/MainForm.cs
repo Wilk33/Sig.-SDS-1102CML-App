@@ -51,12 +51,6 @@ public sealed class MainForm : Form
 		Button("Kursor 3",92),
 		Button("Kursor 4",92)
 	];
-	private readonly Label cursorHint=new()
-	{
-		Text="PPM odblokuj -> LPM ustaw",
-		AutoSize=true,
-		Padding=new(8,7,0,0)
-	};
 	private readonly Label channel1Measurements=MeasurementLabel("CH1");
 	private readonly Label channel2Measurements=MeasurementLabel("CH2");
 	private readonly Label acquisition=new()
@@ -67,13 +61,6 @@ public sealed class MainForm : Form
 		Font=new Font("Consolas", 11, FontStyle.Bold),
 		ForeColor=Color.Silver,
 		Padding=new(10, 5, 10, 0)
-	};
-	private readonly Label status=new()
-	{
-		Text="Gotowy. Wybierz połączenie.",
-		Dock=DockStyle.Fill,
-		AutoEllipsis=true,
-		Padding=new(10, 7, 10, 0)
 	};
 	private readonly Label detail=new()
 	{
@@ -107,7 +94,7 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 	{
 
 		SystemTheme.ApplyTo(this);
-		Text="SIGLENT SDS1102CML+ - Viewer 0.4.0";
+		Text="SIGLENT SDS1102CML+ - Viewer 0.4.1";
 		Font=new("Consolas", 10);
 		BackColor=Color.FromArgb(97, 97, 97);
 		ForeColor=Color.WhiteSmoke;
@@ -125,7 +112,7 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 
 			Dock=DockStyle.Fill,
 			ColumnCount=1,
-			RowCount=8,
+			RowCount=7,
 			BackColor=BackColor
 
 		};
@@ -136,7 +123,6 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 		layout.RowStyles.Add(new(SizeType.Absolute,49));
 		layout.RowStyles.Add(new(SizeType.Absolute,32));
 		layout.RowStyles.Add(new(SizeType.Absolute,30));
-		layout.RowStyles.Add(new(SizeType.Absolute,32));
 		FlowLayoutPanel top=new()
 
 		{
@@ -156,7 +142,7 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 			WrapContents=false
 
 		};
-		selection.Controls.AddRange([ch1,ch2,live,..cursorButtons,cursorHint]);
+		selection.Controls.AddRange([ch1,ch2,live,..cursorButtons]);
 		TableLayoutPanel readings=new()
 		{
 			Dock=DockStyle.Fill,
@@ -186,7 +172,6 @@ ch1.Checked ? 1 : 0, ch2.Checked ? 2 : 0
 		layout.Controls.Add(actions,0,4);
 		layout.Controls.Add(detail,0,5);
 		layout.Controls.Add(acquisition,0,6);
-		layout.Controls.Add(status,0,7);
 		Controls.Add(layout);
 		Controls.Add(menu);
 		MainMenuStrip=menu;
@@ -222,9 +207,9 @@ mode, address
 		}
 		tips.SetToolTip(plot,"Rolka: przybliżenie osi czasu. PPM: odblokuj wybrany kursor. LPM: ustaw kursor.");
 		connect.Click+=async (_, _) => await ConnectOrDisconnect();
-		start.Click+=async (_, _) => await Command(s => s.Start(), "Start wysłany.");
-		stop.Click+=async (_, _) => await Command(s => s.Stop(), "Stop wysłany.");
-		auto.Click+=async (_, _) => await Command(s => s.Auto(), "Auto Setup wysłane.");
+		start.Click+=async (_,_)=>await Command(scope=>scope.Start());
+		stop.Click+=async (_,_)=>await Command(scope=>scope.Stop());
+		auto.Click+=async (_,_)=>await Command(scope=>scope.Auto());
 		capture.Click+=async (_, _) => await CaptureWaveform(true);
 		save.Click+=async (_, _) => await SaveCsv();
 		timer.Tick+=async (_, _) =>
@@ -235,10 +220,10 @@ mode, address
 		await CaptureWaveform(false);
 
 };
-		ch1.CheckedChanged+=(_, _) => UpdateEnabled();
-		ch2.CheckedChanged+=(_, _) => UpdateEnabled();
+		ch1.CheckedChanged+=(_,_)=>ChannelSelectionChanged();
+		ch2.CheckedChanged+=(_,_)=>ChannelSelectionChanged();
 		LoadSettings();
-		UpdateEnabled();
+		ChannelSelectionChanged();
 		timer.Start();
 
 	}
@@ -281,6 +266,17 @@ mode, address
 			cursorButton.Enabled=plot.HasWaveforms;
 		}
 
+	}
+
+	private void ChannelSelectionChanged()
+	{
+		int[] channels=Channels;
+		plot.SetVisibleChannels(channels);
+		channel1Measurements.Visible=ch1.Checked;
+		channel2Measurements.Visible=ch2.Checked;
+		detail.Visible=channels.Length > 0;
+		UpdateCursorButtons();
+		UpdateEnabled();
 	}
 
 	private MenuStrip CreateMenu()
@@ -334,7 +330,6 @@ mode, address
 			string host=address.Text.Trim();
 			if (host.Length == 0)
 				throw new InvalidOperationException("Wpisz adres IP oscyloskopu.");
-			status.Text="Łączenie...";
 			scope=await Task.Run(() =>
 
 {
@@ -360,7 +355,6 @@ mode, address
 });
 			AcquisitionState state=await Task.Run(scope.AcquisitionStatus);
 			UpdateAcquisition(state);
-			status.Text=scope.Identity;
 			SaveSettings();
 
 		}
@@ -391,11 +385,10 @@ mode, address
 		if (old != null)
 			await Task.Run(old.Dispose);
 		UpdateAcquisition(AcquisitionState.Unknown);
-		status.Text="Rozłączono. Ostatnio pobrany przebieg można zapisać.";
 
 	}
 
-	private async Task Command(Action<ScopeClient> action, string message)
+	private async Task Command(Action<ScopeClient> action)
 
 	{
 
@@ -407,8 +400,6 @@ mode, address
 		try
 
 		{
-
-			status.Text=busy ? "Polecenie oczekuje na zakończenie bieżącego odczytu..." : "Wysyłanie polecenia...";
 			AcquisitionState state=AcquisitionState.Unknown;
 			await operations.RunCommandAsync(async () =>
 			{
@@ -421,7 +412,6 @@ mode, address
 			if (ReferenceEquals(scope, client))
 			{
 				UpdateAcquisition(state);
-				status.Text=message;
 			}
 
 		}
@@ -469,7 +459,6 @@ mode, address
 		ScopeClient client=scope;
 		try
 		{
-			status.Text=busy ? "Pobieranie przebiegu oczekuje na zakończenie podglądu..." : "Pobieranie przebiegu...";
 			ScopeSnapshot? snapshot=null;
 			await operations.RunCommandAsync(async()=>
 			{
@@ -565,7 +554,6 @@ mode, address
 			captured=snapshot.Waves;
 		}
 		detail.Text=string.Join(" | ",snapshot.Waves.Select(wave=>$"CH{wave.Channel}: {wave.Volts.Length:N0} pkt"))+" | "+DateTime.Now.ToString("HH:mm:ss");
-		status.Text=manual ? "Pobrano. Zapisz CSV zapisze ten przebieg. Odczyty CH1/CH2 są sekwencyjne." : "";
 		UpdateCursorButtons();
 	}
 
@@ -692,7 +680,6 @@ mode, address
 
 
 });
-			status.Text="Zapisano: "+dialog.FileName;
 
 		}
 
@@ -713,8 +700,6 @@ mode, address
 	private void ShowError(Exception ex, bool dialog)
 
 	{
-
-		status.Text=ex.Message;
 		if (dialog)
 			MessageBox.Show(this, ex.Message, "SDS1102CML+ Viewer", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 

@@ -14,6 +14,7 @@ public sealed class WavePlot : Control
 	];
 	private readonly bool[] cursorActive=new bool[4];
 	private readonly double?[] cursorTimes=new double?[4];
+	private HashSet<int> visibleChannels=[1,2];
 	private Waveform[] waves=[];
 	private Point? hover;
 	private double fullTimeMin;
@@ -31,7 +32,13 @@ public sealed class WavePlot : Control
 		get;set;
 	}
 
-	public bool HasWaveforms=>waves.Length > 0;
+	public bool HasWaveforms=>waves.Any(wave=>visibleChannels.Contains(wave.Channel));
+	public int[] VisibleWaveChannels=>waves
+		.Where(wave=>visibleChannels.Contains(wave.Channel))
+		.Select(wave=>wave.Channel)
+		.Distinct()
+		.OrderBy(channel=>channel)
+		.ToArray();
 	public int SelectedCursor=>selectedCursor;
 	public int MovingCursor=>movingCursor;
 	public (double Min,double Max) VisibleTimeRange=>(viewTimeMin,viewTimeMax);
@@ -50,30 +57,22 @@ public sealed class WavePlot : Control
 		bool wasFull=!HasWaveforms || Nearly(viewTimeMin,fullTimeMin) && Nearly(viewTimeMax,fullTimeMax);
 		waves=value;
 		Stale=false;
-		if(HasWaveforms)
+		UpdateTimeRange(wasFull);
+		Invalidate();
+	}
+
+	public void SetVisibleChannels(int[] channels)
+	{
+		if(channels.Any(channel=>channel != 1 && channel != 2))
 		{
-			fullTimeMin=waves.Min(wave=>wave.Start);
-			fullTimeMax=waves.Max(wave=>wave.Start+(wave.Volts.Length-1)*wave.Interval);
-			if(fullTimeMax <= fullTimeMin)
-			{
-				fullTimeMax=fullTimeMin+waves[0].Interval;
-			}
-			if(wasFull)
-			{
-				viewTimeMin=fullTimeMin;
-				viewTimeMax=fullTimeMax;
-			}
-			else
-			{
-				ClampView();
-			}
-			for(int index=0;index < cursorTimes.Length;index++)
-			{
-				if(cursorTimes[index] is double time)
-				{
-					cursorTimes[index]=Math.Clamp(time,fullTimeMin,fullTimeMax);
-				}
-			}
+			throw new ArgumentException("Wybierz CH1 lub CH2.",nameof(channels));
+		}
+		visibleChannels=channels.Distinct().ToHashSet();
+		UpdateTimeRange(true);
+		if(visibleChannels.Count == 0)
+		{
+			ClearCursors();
+			return;
 		}
 		Invalidate();
 	}
@@ -272,13 +271,17 @@ public sealed class WavePlot : Control
 		}
 		if(!HasWaveforms)
 		{
-			string label="Połącz oscyloskop, aby wyświetlić przebieg";
-			SizeF size=graphics.MeasureString(label,Font);
-			graphics.DrawString(label,Font,text,area.Left+(area.Width-size.Width)/2,area.Top+area.Height/2);
+			if(visibleChannels.Count > 0)
+			{
+				string label="Połącz oscyloskop, aby wyświetlić przebieg";
+				SizeF size=graphics.MeasureString(label,Font);
+				graphics.DrawString(label,Font,text,area.Left+(area.Width-size.Width)/2,area.Top+area.Height/2);
+			}
 			return;
 		}
-		double low=waves.Min(wave=>wave.Volts.Min());
-		double high=waves.Max(wave=>wave.Volts.Max());
+		Waveform[] visibleWaves=CurrentWaves();
+		double low=visibleWaves.Min(wave=>wave.Volts.Min());
+		double high=visibleWaves.Max(wave=>wave.Volts.Max());
 		double margin=Math.Max((high-low)*0.12,0.01);
 		low-=margin;
 		high+=margin;
@@ -295,7 +298,7 @@ public sealed class WavePlot : Control
 			graphics.DrawString(label,Font,text,labelX,area.Bottom+10);
 		}
 		graphics.SetClip(area);
-		foreach(Waveform wave in waves)
+		foreach(Waveform wave in visibleWaves)
 		{
 			DrawWaveform(graphics,area,wave,low,high);
 		}
@@ -410,14 +413,14 @@ public sealed class WavePlot : Control
 			double firstTime=cursorTimes[first-1]!.Value;
 			double secondTime=cursorTimes[second-1]!.Value;
 			string line=$"ΔK{first}-K{second}: Δt="+Engineering(secondTime-firstTime,"s");
-			for(int channel=1;channel <= 2;channel++)
+			foreach(Waveform wave in CurrentWaves().OrderBy(item=>item.Channel))
 			{
-				Waveform? wave=waves.SingleOrDefault(item=>item.Channel == channel);
-				double? firstVoltage=wave == null ? null : VoltageAt(wave,firstTime);
-				double? secondVoltage=wave == null ? null : VoltageAt(wave,secondTime);
-				line+=$"  ΔCH{channel}="+(firstVoltage.HasValue && secondVoltage.HasValue
-					? Engineering(secondVoltage.Value-firstVoltage.Value,"V")
-					: "--");
+				double? firstVoltage=VoltageAt(wave,firstTime);
+				double? secondVoltage=VoltageAt(wave,secondTime);
+				if(firstVoltage.HasValue && secondVoltage.HasValue)
+				{
+					line+=$"  ΔCH{wave.Channel}="+Engineering(secondVoltage.Value-firstVoltage.Value,"V");
+				}
 			}
 			lines.Add((line,Color.WhiteSmoke));
 		}
@@ -440,11 +443,13 @@ public sealed class WavePlot : Control
 	private string CursorValues(string name,double time)
 	{
 		string result=name+"="+Engineering(time,"s");
-		for(int channel=1;channel <= 2;channel++)
+		foreach(Waveform wave in CurrentWaves().OrderBy(item=>item.Channel))
 		{
-			Waveform? wave=waves.SingleOrDefault(item=>item.Channel == channel);
-			double? voltage=wave == null ? null : VoltageAt(wave,time);
-			result+=$"  CH{channel}="+(voltage.HasValue ? Engineering(voltage.Value,"V") : "--");
+			double? voltage=VoltageAt(wave,time);
+			if(voltage.HasValue)
+			{
+				result+=$"  CH{wave.Channel}="+Engineering(voltage.Value,"V");
+			}
 		}
 		return result;
 	}
@@ -453,6 +458,43 @@ public sealed class WavePlot : Control
 	{
 		int index=(int)Math.Round((time-wave.Start)/wave.Interval);
 		return index >= 0 && index < wave.Volts.Length ? wave.Volts[index] : null;
+	}
+
+	private Waveform[] CurrentWaves()=>waves.Where(wave=>visibleChannels.Contains(wave.Channel)).ToArray();
+
+	private void UpdateTimeRange(bool resetView)
+	{
+		Waveform[] current=CurrentWaves();
+		if(current.Length == 0)
+		{
+			fullTimeMin=0;
+			fullTimeMax=1;
+			viewTimeMin=0;
+			viewTimeMax=1;
+			return;
+		}
+		fullTimeMin=current.Min(wave=>wave.Start);
+		fullTimeMax=current.Max(wave=>wave.Start+(wave.Volts.Length-1)*wave.Interval);
+		if(fullTimeMax <= fullTimeMin)
+		{
+			fullTimeMax=fullTimeMin+current[0].Interval;
+		}
+		if(resetView)
+		{
+			viewTimeMin=fullTimeMin;
+			viewTimeMax=fullTimeMax;
+		}
+		else
+		{
+			ClampView();
+		}
+		for(int index=0;index < cursorTimes.Length;index++)
+		{
+			if(cursorTimes[index] is double time)
+			{
+				cursorTimes[index]=Math.Clamp(time,fullTimeMin,fullTimeMax);
+			}
+		}
 	}
 
 	private double FractionAt(int x)

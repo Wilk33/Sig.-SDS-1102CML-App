@@ -16,7 +16,7 @@ Aplikacja nie wymaga uprawnień administratora.
 - USB jest zablokowane w interfejsie i oznaczone jako nietestowane oraz niewdrożone.
 - Cykliczny podgląd przebiegów CH1 i CH2. Odznaczenie „Podgląd” zatrzymuje wyłącznie odświeżanie programu.
 - Vpp, Vrms, częstotliwość, Vmin, Vmax i Duty są odczytywane dla wybranych i dostępnych kanałów.
-- Cztery lokalne kursory pokazują czas i napięcie obu kanałów oraz różnice dla kolejnych aktywnych par.
+- Cztery lokalne kursory pokazują czas i napięcie zaznaczonych kanałów oraz różnice dla kolejnych aktywnych par.
 - Rolka myszy nad wykresem zmienia wyłącznie lokalny zakres osi czasu.
 - „Pobierz przebieg” zachowuje pełny odebrany blok próbek w pamięci aplikacji.
 - „Zapisz CSV” zapisuje ostatni ręcznie pobrany przebieg. Późniejsze odświeżenia podglądu go nie zastępują.
@@ -37,7 +37,7 @@ Adres IP jest zapisywany lokalnie w `%LOCALAPPDATA%/SDS1102CML.Viewer/settings.j
 
 ## USB
 
-Metoda USB jest w wersji 0.4.0 wyłączona i nie może zostać wybrana.
+Metoda USB jest w wersji 0.4.1 wyłączona i nie może zostać wybrana.
 Informacja o USB nie jest pokazywana w głównym oknie.
 Kod prototypowy transportu USB nie jest udostępniony jako funkcja aplikacji.
 Aplikacja nie wymaga EasyScopeX, NI-VISA ani innych pakietów NI.
@@ -60,9 +60,10 @@ przed „Pobierz przebieg”. Program nie obiecuje ciągłego zapisu bez przerw.
 - Kliknięcie przycisku Kursor 1, Kursor 2, Kursor 3 albo Kursor 4 włącza i wybiera kursor. Ponowne kliknięcie aktualnie wybranego kursora wyłącza go.
 - Prawy przycisk myszy nad wykresem odblokowuje wybrany kursor. Kursor podąża wtedy za wskaźnikiem.
 - Lewy przycisk myszy ustawia odblokowany kursor w wybranym miejscu.
-- Każdy aktywny kursor pokazuje czas oraz napięcie CH1 i CH2. Brak odczytanego kanału jest oznaczany jako `--`.
+- Każdy aktywny kursor pokazuje czas oraz napięcie zaznaczonych kanałów. Odznaczony kanał natychmiast znika z wykresu, pomiarów i odczytów kursorów.
 - Aktywne kursory są parowane według numerów: 1-2, następnie 3-4. Jeżeli aktywne są tylko 2 i 3, tworzą parę 2-3. Kursor bez pary nie ma delty.
-- Dla pary pokazywane są delta czasu oraz delty napięcia CH1 i CH2.
+- Dla pary pokazywane są delta czasu oraz delty napięcia zaznaczonych kanałów.
+- Po odznaczeniu obu kanałów wykres i wiersze pomiarowe są puste, a przyciski kursorów są nieaktywne.
 
 ## CSV i skalowanie
 
@@ -83,7 +84,7 @@ Wykres stosuje min/max przy ograniczaniu punktów do szerokości ekranu.
 CSV zawiera wszystkie odebrane próbki, bez tego ograniczenia.
 Niepełny lub nierozpoznany deskryptor jest odrzucany.
 
-## Stan wersji 0.4.0
+## Stan wersji 0.4.1
 
 Połączenie LAN zostało sprawdzone na fizycznym SIGLENT SDS1102CML+ z firmware
 6.01.01.25. W bieżącej wersji test odczytowy pobrał po 20 480 punktów z CH1 i CH2,
@@ -102,7 +103,7 @@ Testy programowe obejmują bloki binarne, podpisane próbki, skalowanie deskrypt
 CSV, ramki prototypu USBTMC, odczyt bez zmiany ustawień, odpowiedzi `SAST`,
 kolejność podgląd-polecenie, parser parametrów PAVA oraz sesję VXI-11 przez lokalny TCP. Test UI weryfikuje
 ikonę, układ w dwóch rozmiarach okna, brak USB w głównym oknie, dolny stan
-akwizycji, lokalne powiększanie osi czasu, parowanie kursorów, systemowy tryb kolorów, ciemne paski tytułu Windows 10 oraz menu i okna
+akwizycji, lokalne powiększanie osi czasu, parowanie kursorów, systemowy tryb kolorów, widoczność danych po wyłączeniu CH1 i CH2, brak dodatkowego dolnego wiersza komunikatów, ciemne paski tytułu Windows 10 oraz menu i okna
 O Aplikacji.
 
 ## Budowanie

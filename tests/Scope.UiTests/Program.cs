@@ -52,6 +52,7 @@ internal static class Program
 			if(j == 0)
 			{
 				AssertPlotInteraction(plot);
+				AssertChannelVisibility(plot,controls);
 			}
 			foreach (Label label in controls.OfType<Label>())
 				if (label.Text.StartsWith("CH1 +"))
@@ -80,6 +81,36 @@ internal static class Program
 
 	}
 
+	private static void AssertChannelVisibility(WavePlot plot,Control[] controls)
+	{
+		CheckBox ch1=controls.OfType<CheckBox>().Single(control=>control.Text == "CH1");
+		CheckBox ch2=controls.OfType<CheckBox>().Single(control=>control.Text == "CH2");
+		Label ch1Measurements=controls.OfType<Label>().Single(label=>label.Text.StartsWith("CH1: Vpp",StringComparison.Ordinal));
+		Label ch2Measurements=controls.OfType<Label>().Single(label=>label.Text.StartsWith("CH2: Vpp",StringComparison.Ordinal));
+		Button[] cursorButtons=controls.OfType<Button>().Where(button=>button.Text.StartsWith("Kursor ",StringComparison.Ordinal)).ToArray();
+
+		ch2.Checked=false;
+		Application.DoEvents();
+		if(!plot.VisibleWaveChannels.SequenceEqual([1]) || !ch1Measurements.Visible || ch2Measurements.Visible)
+		{
+			throw new Exception("An inactive CH2 remains visible in the plot or measurement rows");
+		}
+
+		ch1.Checked=false;
+		Application.DoEvents();
+		if(plot.HasWaveforms || plot.VisibleWaveChannels.Length != 0 || ch1Measurements.Visible || ch2Measurements.Visible || cursorButtons.Any(button=>button.Enabled))
+		{
+			throw new Exception("The waveform, measurements or cursor buttons remain active with both channels disabled");
+		}
+
+		ch1.Checked=true;
+		ch2.Checked=true;
+		Application.DoEvents();
+		if(!plot.VisibleWaveChannels.SequenceEqual(new[] { 1,2 }))
+		{
+			throw new Exception("Enabled channels were not restored");
+		}
+	}
 	private static void AssertPlotInteraction(WavePlot plot)
 
 	{
@@ -144,6 +175,10 @@ internal static class Program
 			throw new Exception("Offline is still displayed as a separate label");
 		if (controls.OfType<Label>().Any(label => label.Text == "Podgląd nie zmienia ustawień oscyloskopu"))
 			throw new Exception("The removed preview note is still visible");
+		if (controls.OfType<Label>().Any(label => label.Text.Contains("PPM odblokuj", StringComparison.Ordinal)))
+			throw new Exception("The unrequested visible cursor instruction is still present");
+		if (controls.OfType<TableLayoutPanel>().Any(panel => panel.RowCount == 8))
+			throw new Exception("The bottom message row is still present");
 		if (!controls.OfType<Label>().Any(label => label.Text == "Stan oscyloskopu: OFFLINE"))
 			throw new Exception("Missing acquisition status at the bottom of the main window");
 		if (!controls.OfType<Label>().Any(label => label.Text.StartsWith("CH1: Vpp")) || !controls.OfType<Label>().Any(label => label.Text.StartsWith("CH2: Vpp")))

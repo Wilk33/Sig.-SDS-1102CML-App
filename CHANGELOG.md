@@ -1,5 +1,13 @@
 # Zmiany
 
+## 0.4.1 - 2026-09-28
+
+- Usunięto wyłącznie stale widoczną instrukcję `PPM odblokuj -> LPM ustaw` przy przyciskach kursorów. Podpowiedzi wyświetlane po najechaniu myszką pozostają dostępne.
+- Usunięto cały dodatkowy dolny wiersz komunikatów, w tym komunikaty o rozłączeniu, oczekiwaniu, pobraniu i zapisaniu przebiegu.
+- Zachowano żądany wiersz stanu oscyloskopu `START`, `STOP`, `NIEZNANY` lub `OFFLINE` oraz wiersz informacji o pobranych punktach.
+- Odznaczony kanał natychmiast znika z wykresu, wierszy pomiarowych i odczytów kursorów.
+- Po odznaczeniu obu kanałów wykres nie pokazuje przebiegów ani pomiarów, a przyciski czterech kursorów są nieaktywne.
+- Dodano test regresyjny widoczności CH1 i CH2 oraz braku usuniętych elementów interfejsu.
 ## 0.4.0 - 2026-09-28
 
 - Dodano cztery kursory pomiarowe. Wybrany kursor odblokowuje się prawym przyciskiem myszy, podąża za wskaźnikiem i jest ustawiany lewym przyciskiem.
