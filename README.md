@@ -1,5 +1,10 @@
 # SIGLENT SDS1102CML+ Viewer
 
+> [!IMPORTANT]
+> **To repozytorium zawiera historyczną linię rozwoju zakończoną na wersji 0.4.1.**
+>
+> Aktywny rozwój aplikacji SIGLENT SDS1000CML Viewer jest kontynuowany w repozytorium [Wilk33/LabStation](https://github.com/Wilk33/LabStation), w katalogu [SDS1000CML Viewer](https://github.com/Wilk33/LabStation/tree/main/SDS1000CML%20Viewer). Bieżąca wersja w LabStation to 0.7.4. Nowe poprawki, wydania i wspólny panel dla wszystkich przyrządów są publikowane wyłącznie tam.
+
 Prosta aplikacja Windows do podglądu CH1/CH2 i pobierania przebiegów do CSV.
 C# / WinForms, szary interfejs i czcionka Consolas. Bez EasyScopeX, NI-VISA, pakietów NI i zależności NuGet.
 
@@ -125,6 +130,10 @@ Każde wydanie ma tag wersji oraz archiwum w GitHub Releases.
 Pełny, niezmieniony tekst w pliku LICENSE. Kod aplikacji jest dostępny do zastosowań
 dozwolonych tą licencją. Środowisko .NET zachowuje własne licencje i informacje.
 Consolas jest używana z systemu Windows; plik czcionki nie jest dystrybuowany.
+
+## Autorstwo i rozwój
+
+Projekt był tworzony przez Codex GPT-5.6-Sol pod kierunkiem Mateusza Skipora, na podstawie jego wymagań, decyzji projektowych i testów urządzenia.
 
 ## Źródła techniczne
 
